@@ -104,7 +104,7 @@ export default function Home() {
       }
 
       if (data && data.id) {
-        setShareLink(`/bill/${data.id}`);
+        setShareLink(`${window.location.origin}/bill/${data.id}`);
       }
     } catch (err) {
       console.error("Unexpected error:", err);
