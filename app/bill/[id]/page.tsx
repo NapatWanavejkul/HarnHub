@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { calculateTotals } from "@/lib/math/splitEngine";
+import { QRCodeCanvas } from "qrcode.react";
+import promptpayQr from "promptpay-qr";
 
 interface Participant {
   id: string;
@@ -33,7 +35,7 @@ export default function BillPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchBillData = async () => {
+    const fetchBill = async () => {
       try {
         const { data, error } = await supabase
           .from("bills")
@@ -41,152 +43,184 @@ export default function BillPage() {
           .eq("id", params.id)
           .single();
 
-        if (error) {
-          setError("Failed to load bill data");
-          console.error("Supabase Error:", error?.message || error);
-        } else {
-          setBillData(data);
-        }
-      } catch (err) {
-        setError("An unexpected error occurred");
-        console.error("Unexpected error:", err);
+        if (error) throw error;
+        setBillData(data);
+      } catch (err: any) {
+        setError(err.message || "Failed to load bill data.");
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchBillData();
+    if (params.id) {
+      fetchBill();
+    }
   }, [params.id]);
 
   if (isLoading) {
     return (
-      <main className="min-h-screen bg-gray-50 text-slate-900 p-6 font-sans">
-        <div className="max-w-2xl mx-auto">
-          <div className="text-center py-10">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-blue-600 font-semibold">Loading bill...</p>
-          </div>
-        </div>
-      </main>
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center font-mono text-cyan-500">
+        <div className="w-12 h-12 border-4 border-zinc-900 border-t-cyan-500 rounded-full animate-spin mb-4"></div>
+        <p className="tracking-[0.2em] uppercase text-xs font-bold">Connecting to DB...</p>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <main className="min-h-screen bg-gray-50 text-slate-900 p-6 font-sans">
-        <div className="max-w-2xl mx-auto">
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-            <strong className="font-bold">Error!</strong>
-            <span className="block sm:inline"> {error}</span>
-          </div>
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center font-mono">
+        <div className="bg-red-950/20 border-2 border-red-500 text-red-500 p-8 rounded-2xl max-w-md w-full shadow-[0_0_20px_rgba(239,68,68,0.2)]">
+          <h2 className="text-2xl font-black mb-3 uppercase tracking-widest">Error</h2>
+          <p className="text-red-400/80">{error}</p>
         </div>
-      </main>
+      </div>
     );
   }
 
   if (!billData) {
     return (
-      <main className="min-h-screen bg-gray-50 text-slate-900 p-6 font-sans">
-        <div className="max-w-2xl mx-auto">
-          <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative" role="alert">
-            <strong className="font-bold">Not Found!</strong>
-            <span className="block sm:inline"> Bill not found.</span>
-          </div>
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center font-mono">
+        <div className="bg-zinc-900 border-2 border-zinc-800 text-zinc-400 p-8 rounded-2xl max-w-md w-full">
+          <h2 className="text-xl font-bold uppercase tracking-widest">Bill Not Found</h2>
+          <p className="text-sm mt-2">The specified ID does not exist.</p>
         </div>
-      </main>
+      </div>
     );
   }
 
+  const subtotal = billData.items.reduce((sum, item) => sum + item.price, 0);
   const splitResults = calculateTotals(billData.items, billData.service_charge, billData.vat);
 
   return (
-    <main className="min-h-screen bg-gray-50 text-slate-900 p-6 font-sans">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <header className="mb-8">
-          <h1 className="text-3xl font-black tracking-tighter text-[#06b6d4] mb-2">
-            Bill Details
-          </h1>
-          <p className="text-slate-600">Bill ID: {billData.id}</p>
+    <main className="min-h-screen bg-black text-zinc-300 p-6 md:p-12 font-mono selection:bg-cyan-500/30">
+      <div className="max-w-2xl mx-auto space-y-8">
+        
+        {/* Header */}
+        <header className="border-b-2 border-zinc-900 pb-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-3 h-3 bg-cyan-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(6,182,212,0.8)]"></div>
+            <h1 className="text-3xl font-black text-zinc-100 tracking-tight">HarnHub<span className="text-cyan-500">_</span>Split</h1>
+          </div>
+          <p className="text-zinc-600 text-xs tracking-widest uppercase break-all">Session_ID: [ {billData.id} ]</p>
         </header>
 
-        {/* Host Information */}
-        <div className="bg-white border border-blue-600 rounded-3xl p-6">
-          <h2 className="font-bold uppercase tracking-widest text-sm text-blue-600 mb-4">Host Information</h2>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-blue-900 font-medium">Host PromptPay:</span>
-              <span className="font-mono text-black font-bold">{billData.host_promptpay}</span>
+        {/* Global Summary */}
+        <section className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl relative overflow-hidden shadow-2xl">
+          <div className="absolute -top-10 -right-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl"></div>
+          <h2 className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 mb-6 font-bold flex items-center gap-2">
+            <span className="w-8 h-px bg-zinc-700"></span> Global Summary
+          </h2>
+          
+          <div className="space-y-4">
+            <div className="flex justify-between items-center border-b border-zinc-800/50 pb-2">
+              <span className="text-zinc-400">Subtotal</span>
+              <span className="text-zinc-100 font-medium">฿{subtotal.toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between items-center border-b border-zinc-800/50 pb-2">
+              <span className="text-zinc-400">Service Charge</span>
+              <span className="text-cyan-400 font-bold">{billData.service_charge}%</span>
+            </div>
+            <div className="flex justify-between items-center border-b border-zinc-800/50 pb-2">
+              <span className="text-zinc-400">VAT</span>
+              <span className="text-emerald-400 font-bold">{billData.vat}%</span>
+            </div>
+            <div className="pt-4 flex justify-between items-center">
+              <span className="text-zinc-500 uppercase text-xs tracking-[0.3em] font-black">Gross Total</span>
+              <span className="text-5xl font-black text-white dropshadow-sm">
+                 ฿{splitResults.reduce((sum, res) => sum + (res.total || 0), 0).toLocaleString()}
+              </span>
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Bill Summary */}
-        <div className="bg-white border border-blue-600 rounded-3xl p-6">
-          <h2 className="font-bold uppercase tracking-widest text-sm text-blue-600 mb-4">Bill Summary</h2>
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-blue-900 font-medium">Subtotal:</span>
-              <span className="font-bold">฿{billData.items.reduce((acc, curr) => acc + curr.price, 0).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-blue-900 font-medium">Service Charge:</span>
-              <span className="font-bold">{billData.service_charge}%</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-blue-900 font-medium">VAT:</span>
-              <span className="font-bold">{billData.vat}%</span>
-            </div>
-            <div className="border-t border-blue-200 my-2"></div>
-            <div className="flex justify-between font-bold text-lg">
-              <span className="text-blue-900">Total:</span>
-              <span>฿{billData.items.reduce((acc, curr) => acc + curr.price, 0).toLocaleString()}</span>
-            </div>
-          </div>
-        </div>
+        {/* Itemized List */}
+        <section className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl shadow-xl">
+           <h2 className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 mb-6 font-bold flex items-center gap-2">
+             <span className="w-8 h-px bg-zinc-700"></span> Receipt Data
+           </h2>
+           <div className="space-y-6">
+             {billData.items.map((item) => (
+               <div key={item.id} className="group">
+                 <div className="flex justify-between items-start mb-3">
+                   <span className="font-bold text-zinc-200 group-hover:text-cyan-400 transition-colors uppercase tracking-wide text-sm">{item.name || "Untitled"}</span>
+                   <span className="text-emerald-400 font-black bg-emerald-950/30 px-3 py-1 rounded-md text-sm border border-emerald-900/50 shadow-[0_0_10px_rgba(52,211,153,0.05)]">
+                     ฿{item.price.toLocaleString()}
+                   </span>
+                 </div>
+                 <div className="flex flex-wrap gap-2">
+                   {item.consumedBy.map(pId => {
+                     const p = billData.participants.find(part => part.id === pId);
+                     return (
+                       <span key={pId} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 bg-zinc-950 text-cyan-400 rounded border border-cyan-900/50">
+                         {p?.name || "Unknown"}
+                       </span>
+                     )
+                   })}
+                 </div>
+               </div>
+             ))}
+           </div>
+        </section>
 
-        {/* Items List */}
-        <div className="bg-white border border-blue-600 rounded-3xl p-6">
-          <h2 className="font-bold uppercase tracking-widest text-sm text-blue-600 mb-4">Items</h2>
-          <div className="space-y-3">
-            {billData.items.map((item) => (
-              <div key={item.id} className="flex justify-between items-center py-2 border-b border-blue-100">
-                <div>
-                  <span className="font-medium text-blue-900">{item.name}</span>
-                  <div className="text-xs text-slate-500">
-                    Consumed by: {item.consumedBy.length > 0 
-                      ? item.consumedBy.map(id => {
-                          const participant = billData.participants.find(p => p.id === id);
-                          return participant?.name || 'Unknown';
-                        }).join(', ')
-                      : 'No one'}
-                  </div>
-                </div>
-                <span className="font-bold">฿{item.price.toLocaleString()}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Participants Breakdown */}
-        <div className="bg-white border border-blue-600 rounded-3xl p-6">
-          <h2 className="font-bold uppercase tracking-widest text-sm text-blue-600 mb-4">Participants Breakdown</h2>
-          <div className="space-y-3">
+        {/* Participants Breakdown / Owe calculation */}
+        <section className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl shadow-xl">
+          <h2 className="text-[10px] uppercase tracking-[0.2em] text-cyan-500 mb-6 font-bold flex items-center gap-2">
+            <span className="w-8 h-px bg-cyan-700"></span> User Share Manifest
+          </h2>
+          <div className="space-y-5">
             {splitResults.map((result) => {
               const person = billData.participants.find(p => p.id === result.id);
               return (
-                <div key={result.id} className="flex justify-between items-center py-2 border-b border-blue-100">
-                  <span className="text-blue-900 font-medium">{person?.name || 'Unknown'}</span>
-                  <span className="font-bold text-lg">฿{(result.total || 0).toLocaleString()}</span>
+                <div key={result.id} className="p-5 bg-black rounded-xl border border-zinc-800 hover:border-cyan-900/50 transition-colors">
+                  <div className="flex justify-between items-center mb-6">
+                    <span className="text-xl font-black text-zinc-100 uppercase tracking-widest">{person?.name || "Unknown"}</span>
+                    <span className="text-3xl font-black text-emerald-400">
+                      ฿{(result.total || 0).toLocaleString()}
+                    </span>
+                  </div>
+                  
+                  {/* PromptPay QR Code Component Placeholder */}
+                  <div className="pt-6 border-t border-zinc-800 border-dashed flex flex-col items-center">
+                     <div className="flex items-center gap-3 mb-4">
+                        <div className="h-px w-10 bg-zinc-800"></div>
+                        <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-black text-center">PromptPay Transfer</p>
+                        <div className="h-px w-10 bg-zinc-800"></div>
+                     </div>
+                     
+                     <div className="p-3 bg-zinc-950 rounded-2xl border border-zinc-800 flex flex-col items-center">
+                       {billData.host_promptpay ? (
+                         <>
+                           <div className="bg-white p-2 rounded-xl mb-3 shadow-[0_0_15px_rgba(52,211,153,0.15)]">
+                             <QRCodeCanvas
+                               value={promptpayQr(billData.host_promptpay, { amount: result.total || 0 })}
+                               size={160}
+                               bgColor="#ffffff"
+                               fgColor="#000000"
+                               level="Q"
+                             />
+                           </div>
+                           <span className="text-[10px] font-mono text-cyan-500 tracking-widest bg-cyan-950/30 px-3 py-1.5 rounded-full border border-cyan-900/50">
+                             {billData.host_promptpay}
+                           </span>
+                         </>
+                       ) : (
+                         <div className="w-40 h-40 flex items-center justify-center border-2 border-dashed border-red-900/50 rounded-xl">
+                           <span className="text-red-500 text-xs font-bold uppercase tracking-widest">No PromptPay</span>
+                         </div>
+                       )}
+                     </div>
+                  </div>
                 </div>
-              );
+              )
             })}
           </div>
-        </div>
+        </section>
 
-        <footer className="text-center text-xs text-slate-500 mt-8">
-          Generated by HarnHub | Smart Split Prototype
-        </footer>
       </div>
+      
+      <footer className="mt-16 text-center">
+        <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-[0.3em]">HarnHub // Engineering Module</p>
+      </footer>
     </main>
   );
 }
