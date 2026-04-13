@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { calculateTotals } from "@/lib/math/splitEngine";
 import { QRCodeCanvas } from "qrcode.react";
 import promptpayQr from "promptpay-qr";
+import { toPng } from "html-to-image";
 
 interface Participant {
   id: string;
@@ -30,6 +31,7 @@ interface BillData {
 
 export default function BillPage() {
   const params = useParams();
+  const printRef = useRef<HTMLDivElement>(null);
   const [billData, setBillData] = useState<BillData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -88,14 +90,28 @@ export default function BillPage() {
     );
   }
 
+  const exportAsImage = async () => {
+    if (!printRef.current) return;
+    try {
+      const dataUrl = await toPng(printRef.current, { cacheBust: true });
+      const link = document.createElement("a");
+      link.download = `HarnHub_Split_${billData?.id || "Export"}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error("Failed to export image", err);
+    }
+  };
+
   const subtotal = billData.items.reduce((sum, item) => sum + item.price, 0);
   const splitResults = calculateTotals(billData.items, billData.service_charge, billData.vat);
 
   return (
-    <main className="min-h-screen bg-black text-zinc-300 p-6 md:p-12 font-mono selection:bg-cyan-500/30">
-      <div className="max-w-2xl mx-auto space-y-8">
-        
-        {/* Header */}
+    <main className="min-h-screen bg-black text-zinc-300 p-2 md:p-6 font-mono selection:bg-cyan-500/30">
+      <div className="max-w-2xl mx-auto relative pb-20">
+        <div ref={printRef} className="space-y-8 bg-black p-4 sm:p-6 rounded-3xl">
+          
+          {/* Header */}
         <header className="border-b-2 border-zinc-900 pb-6">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-3 h-3 bg-cyan-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(6,182,212,0.8)]"></div>
@@ -216,11 +232,21 @@ export default function BillPage() {
           </div>
         </section>
 
-      </div>
-      
       <footer className="mt-16 text-center">
         <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-[0.3em]">HarnHub // Engineering Module</p>
       </footer>
+        </div>
+
+        {/* Floating/Sticky export button (excluded from capture) */}
+        <div className="fixed bottom-6 left-0 right-0 flex justify-center pointer-events-none z-50 px-4">
+          <button
+            onClick={exportAsImage}
+            className="pointer-events-auto bg-zinc-800 hover:bg-zinc-700 text-cyan-400 font-black uppercase tracking-widest text-[11px] sm:text-xs px-8 py-4 rounded-full border border-cyan-900/50 shadow-[0_10px_40px_rgba(34,211,238,0.15)] transition-all transform hover:-translate-y-1 active:translate-y-0"
+          >
+            Export Receipt Image
+          </button>
+        </div>
+      </div>
     </main>
   );
 }
