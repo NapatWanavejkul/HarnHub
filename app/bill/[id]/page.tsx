@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { calculateTotals } from "@/lib/math/splitEngine";
-import { QRCodeCanvas } from "qrcode.react";
+import { QRCodeSVG } from "qrcode.react";
 import promptpayQr from "promptpay-qr";
 import { toPng } from "html-to-image";
 
@@ -47,7 +47,12 @@ export default function BillPage() {
           .single();
 
         if (error) throw error;
-        setBillData(data);
+        
+        // Extract URL discount query param to bypass missing DB schema column
+        const searchParams = new URLSearchParams(window.location.search);
+        const discountParam = parseFloat(searchParams.get("discount") || "0");
+        
+        setBillData({ ...data, discount: discountParam });
       } catch (err: any) {
         setError(err.message || "Failed to load bill data.");
       } finally {
@@ -214,7 +219,7 @@ export default function BillPage() {
                        {billData.host_promptpay ? (
                          <>
                            <div className="bg-white p-2 rounded-xl mb-3 shadow-[0_0_15px_rgba(52,211,153,0.15)]">
-                             <QRCodeCanvas
+                             <QRCodeSVG
                                value={promptpayQr(billData.host_promptpay, { amount: result.total || 0 })}
                                size={160}
                                bgColor="#ffffff"
