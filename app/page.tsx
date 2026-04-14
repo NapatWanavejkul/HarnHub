@@ -30,6 +30,11 @@ export default function Home() {
   const [activeQR, setActiveQR] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [shareLink, setShareLink] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+  const [includeServiceCharge, setIncludeServiceCharge] = useState<boolean>(false);
+  const [includeVat, setIncludeVat] = useState<boolean>(false);
+  const [discount, setDiscount] = useState<number>(0);
+  const [targetTotal, setTargetTotal] = useState<number | "">("");
 
   const addItem = () => {
     const newItem: BillItem = {
@@ -79,6 +84,67 @@ export default function Home() {
     }));
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsAnalyzing(true);
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+
+      reader.onload = async () => {
+        const base64Image = reader.result as string;
+
+        try {
+          const response = await fetch('/api/scan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: base64Image })
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to parse image from Vision API');
+          }
+
+          const data = await response.json();
+          const extractedItems = data.items || [];
+
+          if (extractedItems.length === 0) {
+            alert("Couldn't find any valid items in this receipt.");
+          } else {
+            const newItems: BillItem[] = extractedItems.map((item: any) => ({
+              id: Math.random().toString(36).substr(2, 9),
+              name: item.name,
+              price: Number(item.price),
+              consumedBy: []
+            }));
+
+            setItems(prev => [...prev, ...newItems]);
+          }
+        } catch (apiError) {
+          console.error("Vision AI Error:", apiError);
+          alert("Failed to analyze image from backend. Please try again.");
+        } finally {
+          setIsAnalyzing(false);
+          e.target.value = '';
+        }
+      };
+
+      reader.onerror = (err) => {
+        console.error("FileReader Error:", err);
+        alert("Failed to read image file.");
+        setIsAnalyzing(false);
+        e.target.value = '';
+      };
+
+    } catch (err) {
+      console.error("Upload Error:", err);
+      setIsAnalyzing(false);
+      e.target.value = '';
+    }
+  };
+
   const saveBillToDatabase = async () => {
     try {
       setIsSaving(true);
@@ -89,6 +155,7 @@ export default function Home() {
             host_promptpay: hostPromptPay,
             service_charge: serviceCharge,
             vat: vat,
+            discount: discount,
             participants: participants,
             items: items,
           },
@@ -113,6 +180,9 @@ export default function Home() {
     }
   };
 
+  const activeSC = includeServiceCharge ? serviceCharge : 0;
+  const activeVat = includeVat ? vat : 0;
+
   return (
     <main className="min-h-screen bg-gray-50 text-slate-900 p-6 font-sans">
       {/* 3. SESSION LOG: 
@@ -132,9 +202,9 @@ export default function Home() {
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Restaurant Info Card */}
         <div className="relative bg-white border border-blue-600 rounded-3xl p-6">
-          <input 
-            type="text" 
-            placeholder="Where are you eating?" 
+          <input
+            type="text"
+            placeholder="Where are you eating?"
             value={restaurantName}
             onChange={(e) => setRestaurantName(e.target.value)}
             className="w-full bg-white border border-blue-600 rounded-xl p-4 text-xl font-bold outline-none focus:border-blue-600 transition-all"
@@ -158,14 +228,14 @@ export default function Home() {
           <div className="space-y-3">
             {participants.map((participant) => (
               <div key={participant.id} className="flex space-x-2 animate-in fade-in slide-in-from-top-1">
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   placeholder="Friend's name"
                   value={participant.name}
                   onChange={(e) => updateParticipant(participant.id, e.target.value)}
                   className="flex-1 bg-white border border-blue-600 rounded-xl p-3 text-sm outline-none focus:border-blue-600"
                 />
-                <button 
+                <button
                   onClick={() => removeParticipant(participant.id)}
                   className="p-3 text-zinc-600 hover:text-red-500 transition-colors"
                 >
@@ -174,7 +244,7 @@ export default function Home() {
               </div>
             ))}
 
-            <button 
+            <button
               onClick={addParticipant}
               className="w-full py-4 border-2 border-dashed border-blue-600 rounded-2xl text-blue-600 hover:border-blue-600 hover:text-blue-600 hover:bg-blue-600/5 transition-all flex items-center justify-center space-x-2"
             >
@@ -199,24 +269,36 @@ export default function Home() {
           </div>
 
           <div className="space-y-3">
-            {items.map((item) => (
+            {items.map((item) => {
+              const itemSc = item.price * (activeSC / 100);
+              const itemVat = (item.price + itemSc) * (activeVat / 100);
+              const finalNetPrice = item.price + itemSc + itemVat;
+
+              return (
               <div key={item.id} className="animate-in fade-in slide-in-from-top-1">
-                <div className="flex space-x-2 mb-2">
-                  <input 
-                    type="text" 
+                <div className="flex space-x-2 mb-2 items-start">
+                  <input
+                    type="text"
                     placeholder="Item name"
                     value={item.name}
                     onChange={(e) => updateItem(item.id, 'name', e.target.value)}
                     className="flex-1 bg-white border border-blue-600 rounded-xl p-3 text-sm outline-none focus:border-blue-600"
                   />
-                  <input 
-                    type="number" 
-                    placeholder="Price"
-                    value={item.price || ""}
-                    onChange={(e) => updateItem(item.id, 'price', parseFloat(e.target.value) || 0)}
-                    className="w-24 bg-white border border-blue-600 rounded-xl p-3 text-sm outline-none focus:border-blue-600"
-                  />
-                  <button 
+                  <div className="flex flex-col w-28 shrink-0">
+                    <input
+                      type="number"
+                      placeholder="Price"
+                      value={item.price || ""}
+                      onChange={(e) => updateItem(item.id, 'price', parseFloat(e.target.value) || 0)}
+                      className="w-full bg-white border border-blue-600 rounded-xl p-3 text-sm outline-none focus:border-blue-600"
+                    />
+                    {item.price > 0 && (
+                      <span className="text-[10px] font-bold text-[#06b6d4] text-right mt-1 pr-1 tracking-widest uppercase">
+                        Net ฿{finalNetPrice.toFixed(2)}
+                      </span>
+                    )}
+                  </div>
+                  <button
                     onClick={() => removeItem(item.id)}
                     className="p-3 text-zinc-600 hover:text-red-500 transition-colors"
                   >
@@ -230,11 +312,10 @@ export default function Home() {
                       <button
                         key={participant.id}
                         onClick={() => toggleConsumedBy(item.id, participant.id)}
-                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                          isConsumed
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${isConsumed
                             ? 'bg-blue-600 text-white'
                             : 'bg-transparent border border-blue-600 text-blue-600'
-                        }`}
+                          }`}
                       >
                         {participant.name || 'Unnamed'}
                       </button>
@@ -242,9 +323,24 @@ export default function Home() {
                   })}
                 </div>
               </div>
-            ))}
+              );
+            })}
 
-            <button 
+            <label className="block w-full cursor-pointer mb-3">
+              <input
+                type="file"
+                accept="image/jpeg, image/png, image/webp"
+                capture="environment"
+                onChange={handleImageUpload}
+                disabled={isAnalyzing}
+                className="hidden"
+              />
+              <div className={`w-full py-4 rounded-2xl transition-all flex items-center justify-center space-x-2 bg-zinc-800 hover:bg-zinc-700 text-cyan-400 font-bold uppercase tracking-widest text-xs shadow-lg border border-cyan-900/30 ${isAnalyzing ? 'opacity-70 cursor-not-allowed animate-pulse' : ''}`}>
+                <span>{isAnalyzing ? "Analyzing Image..." : "Scan Receipt"}</span>
+              </div>
+            </label>
+
+            <button
               onClick={addItem}
               className="w-full py-4 border-2 border-dashed border-blue-600 rounded-2xl text-blue-600 hover:border-blue-600 hover:text-blue-600 hover:bg-blue-600/5 transition-all flex items-center justify-center space-x-2"
             >
@@ -278,60 +374,128 @@ export default function Home() {
         {/* TAX & SERVICE SETTINGS */}
         {items.length > 0 && (
           <div className="bg-white border border-blue-600 rounded-3xl p-6 mb-4">
-            <h2 className="font-bold uppercase tracking-widest text-sm text-blue-600 mb-4">TAX & SERVICE SETTINGS</h2>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <h2 className="font-bold uppercase tracking-widest text-sm text-blue-600 mb-4">DISCOUNT & TAXES</h2>
+            <div className="mb-6">
               <label className="flex flex-col text-blue-900 text-sm gap-2">
-                <span>Service Charge (%)</span>
+                <span className="font-medium">Total Discount (฿)</span>
                 <input
                   type="number"
-                  value={serviceCharge}
-                  onChange={(e) => setServiceCharge(parseFloat(e.target.value) || 0)}
-                  className="bg-white border border-blue-600 rounded-xl p-3 text-sm text-black outline-none focus:border-blue-600"
+                  value={discount > 0 ? discount : ""}
+                  onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                  className="bg-white border border-blue-600 rounded-xl p-3 text-sm text-black outline-none focus:border-blue-600 w-full sm:w-1/2"
                 />
               </label>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
               <label className="flex flex-col text-blue-900 text-sm gap-2">
-                <span>VAT (%)</span>
-                <input
-                  type="number"
-                  value={vat}
-                  onChange={(e) => setVat(parseFloat(e.target.value) || 0)}
-                  className="bg-white border border-blue-600 rounded-xl p-3 text-sm text-black outline-none focus:border-blue-600"
-                />
+                <div className="flex items-center gap-2 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={includeServiceCharge} 
+                    onChange={(e) => setIncludeServiceCharge(e.target.checked)} 
+                    className="w-4 h-4 text-blue-600 rounded border-blue-600 focus:ring-blue-600"
+                  />
+                  <span className="font-medium">Service Charge (%)</span>
+                </div>
+                {includeServiceCharge && (
+                  <input
+                    type="number"
+                    value={serviceCharge}
+                    onChange={(e) => setServiceCharge(parseFloat(e.target.value) || 0)}
+                    className="bg-white border border-blue-600 rounded-xl p-3 text-sm text-black outline-none focus:border-blue-600 animate-in fade-in slide-in-from-top-2"
+                  />
+                )}
+              </label>
+              <label className="flex flex-col text-blue-900 text-sm gap-2">
+                <div className="flex items-center gap-2 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={includeVat} 
+                    onChange={(e) => setIncludeVat(e.target.checked)} 
+                    className="w-4 h-4 text-blue-600 rounded border-blue-600 focus:ring-blue-600"
+                  />
+                  <span className="font-medium">VAT (%)</span>
+                </div>
+                {includeVat && (
+                  <input
+                    type="number"
+                    value={vat}
+                    onChange={(e) => setVat(parseFloat(e.target.value) || 0)}
+                    className="bg-white border border-blue-600 rounded-xl p-3 text-sm text-black outline-none focus:border-blue-600 animate-in fade-in slide-in-from-top-2"
+                  />
+                )}
               </label>
             </div>
           </div>
         )}
 
         {/* Calculation Summary Preview */}
-        {items.length > 0 && (
-          <div className="bg-[#06b6d4] rounded-3xl p-6 text-black">
-            <div className="flex justify-between items-center mb-4">
-              <div>
-                <p className="text-xs font-bold uppercase opacity-60">Subtotal</p>
-                <p className="text-3xl font-black">
-                  ฿{items.reduce((acc, curr) => acc + curr.price, 0).toLocaleString()}
-                </p>
+        {items.length > 0 && (() => {
+          const subtotal = items.reduce((acc, curr) => acc + curr.price, 0);
+          const subtotalAfterDiscount = Math.max(0, subtotal - discount);
+          const totalSc = subtotalAfterDiscount * (activeSC / 100);
+          const totalVat = (subtotalAfterDiscount + totalSc) * (activeVat / 100);
+          const netTotal = subtotalAfterDiscount + totalSc + totalVat;
+          const diff = targetTotal === "" ? 0 : Math.abs(netTotal - Number(targetTotal));
+
+          return (
+            <div className="bg-[#06b6d4] rounded-3xl p-6 text-black">
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex gap-8">
+                  <div>
+                    <p className="text-xs font-bold uppercase opacity-60">Subtotal</p>
+                    <p className="text-2xl font-black">
+                      ฿{subtotal.toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase opacity-60 drop-shadow-md">Net Total</p>
+                    <p className="text-4xl font-black drop-shadow-md">
+                      ฿{netTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    </p>
+                  </div>
+                </div>
+                <div className="bg-black/10 p-3 rounded-2xl hidden sm:block">
+                  <Calculator size={32} />
+                </div>
               </div>
-              <div className="bg-black/10 p-3 rounded-2xl">
-                <Calculator size={32} />
+              <div className="grid gap-2 sm:grid-cols-2 text-sm">
+                <div className="rounded-2xl border border-blue-600 bg-white/70 p-3 text-blue-900">
+                  <p className="font-semibold uppercase tracking-widest">Service Charge</p>
+                  <p>{activeSC}%</p>
+                </div>
+                <div className="rounded-2xl border border-blue-600 bg-white/70 p-3 text-blue-900">
+                  <p className="font-semibold uppercase tracking-widest">VAT</p>
+                  <p>{activeVat}%</p>
+                </div>
+              </div>
+
+              <hr className="border-black/20 my-4" />
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <label className="flex items-center gap-3">
+                  <span className="text-sm font-bold uppercase tracking-widest opacity-80">Receipt Total (Checksum)</span>
+                  <input
+                    type="number"
+                    value={targetTotal}
+                    onChange={(e) => setTargetTotal(e.target.value === "" ? "" : parseFloat(e.target.value) || 0)}
+                    placeholder="0.00"
+                    className="bg-white/50 border border-black/10 rounded-xl p-2 text-sm text-black outline-none focus:bg-white w-24 sm:w-32 transition-colors"
+                  />
+                </label>
+                {targetTotal !== "" && (
+                  <div className={`px-4 py-2 rounded-xl font-bold text-[10px] sm:text-xs uppercase tracking-widest shadow-sm transition-all ${diff < 1 ? "bg-[#10b981] text-white" : "bg-[#ef4444] text-white animate-pulse"}`}>
+                    {diff < 1 ? "✅ MATCH: SPLIT IS SAFE" : `❌ MISMATCH: Check toggles (Off by ฿${diff.toFixed(2)})`}
+                  </div>
+                )}
               </div>
             </div>
-            <div className="grid gap-2 sm:grid-cols-2 text-sm">
-              <div className="rounded-2xl border border-blue-600 bg-white/70 p-3 text-blue-900">
-                <p className="font-semibold uppercase tracking-widest">Service Charge</p>
-                <p>{serviceCharge}%</p>
-              </div>
-              <div className="rounded-2xl border border-blue-600 bg-white/70 p-3 text-blue-900">
-                <p className="font-semibold uppercase tracking-widest">VAT</p>
-                <p>{vat}%</p>
-              </div>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Final Split */}
         {items.length > 0 && (() => {
-          const splitResults = calculateTotals(items, serviceCharge, vat);
+          const splitResults = calculateTotals(items, activeSC, activeVat, discount);
           return (
             <div className="bg-white border border-blue-600 rounded-3xl p-6">
               <h2 className="font-bold uppercase tracking-widest text-sm text-blue-600 mb-4">Final Split</h2>
@@ -376,11 +540,10 @@ export default function Home() {
           <button
             onClick={saveBillToDatabase}
             disabled={isSaving}
-            className={`w-full rounded-xl px-4 py-3 font-bold uppercase tracking-widest text-sm transition-all ${
-              isSaving
+            className={`w-full rounded-xl px-4 py-3 font-bold uppercase tracking-widest text-sm transition-all ${isSaving
                 ? "bg-blue-400 text-white/70 cursor-not-allowed"
                 : "bg-blue-600 text-white hover:bg-blue-700"
-            }`}
+              }`}
           >
             {isSaving ? "Generating..." : "Generate Shareable Link"}
           </button>

@@ -25,6 +25,7 @@ interface BillData {
   host_promptpay: string;
   service_charge: number;
   vat: number;
+  discount?: number;
   participants: Participant[];
   items: BillItem[];
 }
@@ -104,7 +105,7 @@ export default function BillPage() {
   };
 
   const subtotal = billData.items.reduce((sum, item) => sum + item.price, 0);
-  const splitResults = calculateTotals(billData.items, billData.service_charge, billData.vat);
+  const splitResults = calculateTotals(billData.items, billData.service_charge, billData.vat, billData.discount || 0);
 
   return (
     <main className="min-h-screen bg-black text-zinc-300 p-2 md:p-6 font-mono selection:bg-cyan-500/30">
@@ -132,6 +133,12 @@ export default function BillPage() {
               <span className="text-zinc-400">Subtotal</span>
               <span className="text-zinc-100 font-medium">฿{subtotal.toLocaleString()}</span>
             </div>
+            {(billData.discount ?? 0) > 0 && (
+              <div className="flex justify-between items-center border-b border-zinc-800/50 pb-2 text-red-400">
+                <span>Discount</span>
+                <span className="font-medium">-฿{billData.discount?.toLocaleString()}</span>
+              </div>
+            )}
             <div className="flex justify-between items-center border-b border-zinc-800/50 pb-2">
               <span className="text-zinc-400">Service Charge</span>
               <span className="text-cyan-400 font-bold">{billData.service_charge}%</span>
