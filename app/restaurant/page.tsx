@@ -94,42 +94,64 @@ export default function Home() {
       const reader = new FileReader();
       reader.readAsDataURL(file);
 
-      reader.onload = async () => {
-        const base64Image = reader.result as string;
+      reader.onload = async (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
 
-        try {
-          const response = await fetch('/api/scan', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: base64Image })
-          });
+        img.onload = async () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 1024;
+          let width = img.width;
+          let height = img.height;
 
-          if (!response.ok) {
-            throw new Error('Failed to parse image from Vision API');
+          if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
           }
 
-          const data = await response.json();
-          const extractedItems = data.items || [];
+          canvas.width = width;
+          canvas.height = height;
 
-          if (extractedItems.length === 0) {
-            alert("Couldn't find any valid items in this receipt.");
-          } else {
-            const newItems: BillItem[] = extractedItems.map((item: any) => ({
-              id: Math.random().toString(36).substr(2, 9),
-              name: item.name,
-              price: Number(item.price),
-              consumedBy: []
-            }));
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
 
-            setItems(prev => [...prev, ...newItems]);
+          // Compress to JPEG at 70% quality to bypass Vercel 4.5MB Payload limit
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+
+          try {
+            const response = await fetch('/api/scan', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ image: compressedBase64 })
+            });
+
+            if (!response.ok) {
+              throw new Error('Failed to parse image from Vision API');
+            }
+
+            const data = await response.json();
+            const extractedItems = data.items || [];
+
+            if (extractedItems.length === 0) {
+              alert("Couldn't find any valid items in this receipt.");
+            } else {
+              const newItems: BillItem[] = extractedItems.map((item: any) => ({
+                id: Math.random().toString(36).substr(2, 9),
+                name: item.name,
+                price: Number(item.price),
+                consumedBy: []
+              }));
+
+              setItems(prev => [...prev, ...newItems]);
+            }
+          } catch (apiError) {
+            console.error("Vision AI Error:", apiError);
+            alert("Failed to analyze image from backend. Please try again.");
+          } finally {
+            setIsAnalyzing(false);
+            e.target.value = '';
           }
-        } catch (apiError) {
-          console.error("Vision AI Error:", apiError);
-          alert("Failed to analyze image from backend. Please try again.");
-        } finally {
-          setIsAnalyzing(false);
-          e.target.value = '';
-        }
+        };
       };
 
       reader.onerror = (err) => {
