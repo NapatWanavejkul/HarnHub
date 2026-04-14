@@ -5,13 +5,14 @@ export async function POST(req: Request) {
     const body = await req.json();
 
     // Your key is working! Paste it here one last time.
-    const apiKey = process.env.GROQ_API_KEY;
+    const apiKey = process.env.GROQ_API_KEY as string;
     if (!body.image) {
       return NextResponse.json({ error: "No image provided" }, { status: 400 });
     }
 
     const cleanBase64 = body.image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
 
+    console.log("=== THE KEY IS ===", process.env.GROQ_API_KEY);
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
