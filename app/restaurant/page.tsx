@@ -126,7 +126,8 @@ export default function Home() {
             });
 
             if (!response.ok) {
-              throw new Error('Failed to parse image from Vision API');
+              const errorText = await response.text();
+              throw new Error(`[Vercel Server Error: ${response.status}] ${errorText}`);
             }
 
             const data = await response.json();
@@ -144,9 +145,9 @@ export default function Home() {
 
               setItems(prev => [...prev, ...newItems]);
             }
-          } catch (apiError) {
+          } catch (apiError: any) {
             console.error("Vision AI Error:", apiError);
-            alert("Failed to analyze image from backend. Please try again.");
+            alert(`Failed to analyze image from backend. Detailed Error: ${apiError.message}`);
           } finally {
             setIsAnalyzing(false);
             e.target.value = '';
