@@ -66,6 +66,16 @@ export default function HarnHubLanding() {
             </div>
           </div>
         </div>
+
+        {/* Quick Start Guide */}
+        <div className="mt-12 p-6 bg-zinc-900 rounded-xl border border-zinc-800">
+          <h2 className="text-sm font-bold tracking-widest text-zinc-500 mb-4 uppercase">HOW IT WORKS</h2>
+          <div className="space-y-3 text-zinc-400 font-medium text-sm sm:text-base">
+            <p>1. Select your routing engine (Restaurant for dynamic tax, Monthly for fixed costs).</p>
+            <p>2. Input your data manually or use the Vision AI to scan a physical receipt.</p>
+            <p>3. Assign items to members and instantly generate a PromptPay QR code or PNG.</p>
+          </div>
+        </div>
       </div>
       
       <footer className="mt-auto pb-6 text-[10px] text-zinc-700 font-bold uppercase tracking-[0.3em]">

@@ -379,9 +379,10 @@ export default function Home() {
                 className="hidden"
               />
               <div className={`w-full py-4 rounded-2xl transition-all flex items-center justify-center space-x-2 bg-zinc-800 hover:bg-zinc-700 text-cyan-400 font-bold uppercase tracking-widest text-xs shadow-lg border border-cyan-900/30 ${isAnalyzing ? 'opacity-70 cursor-not-allowed animate-pulse' : ''}`}>
-                <span>{isAnalyzing ? "Analyzing Image..." : "Scan Receipt"}</span>
+                <span>{isAnalyzing ? "Analyzing Image..." : "Scan Receipt (BETA)"}</span>
               </div>
             </label>
+            <p className="text-xs text-zinc-500 text-center mt-2 mb-3">AI extracts item names and base prices automatically.</p>
 
             <button
               onClick={addItem}
@@ -470,6 +471,7 @@ export default function Home() {
                 )}
               </label>
             </div>
+            <p className="text-xs text-zinc-500 mt-1">Calculates proportionally across all shared items.</p>
           </div>
         )}
 

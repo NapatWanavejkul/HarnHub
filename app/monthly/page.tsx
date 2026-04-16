@@ -156,7 +156,7 @@ export default function MonthlySplit() {
               <Users size={14} /> Roommates Directory
             </h2>
 
-            <div className="flex gap-2 mb-6">
+            <div className="flex gap-2 mb-2">
               <input
                 type="text"
                 placeholder="Roommate Name"
@@ -172,6 +172,7 @@ export default function MonthlySplit() {
                 Add <Plus size={16} />
               </button>
             </div>
+            <p className="text-xs text-zinc-500 mt-1 mb-6">Total expenses will be divided equally among all listed members.</p>
 
             <div className="grid grid-cols-2 gap-3">
               {members.map((member) => (
