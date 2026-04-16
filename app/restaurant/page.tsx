@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { Plus, Trash2, Calculator, Receipt, Users } from "lucide-react";
+import { toPng } from "html-to-image";
 import { QRCodeSVG } from "qrcode.react";
 import promptpayQr from "promptpay-qr";
 import { calculateTotals } from "@/lib/math/splitEngine";
@@ -36,6 +37,20 @@ export default function Home() {
   const [includeVat, setIncludeVat] = useState<boolean>(false);
   const [discount, setDiscount] = useState<number>(0);
   const [targetTotal, setTargetTotal] = useState<number | "">("");
+  const billRef = useRef<HTMLDivElement>(null);
+
+  const downloadReceipt = async () => {
+    if (!billRef.current) return;
+    try {
+      const dataUrl = await toPng(billRef.current, { cacheBust: true, backgroundColor: '#000000' });
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = 'harnhub-receipt.png';
+      link.click();
+    } catch (err) {
+      console.error("Failed to generate image", err);
+    }
+  };
 
   const addItem = () => {
     const newItem: BillItem = {
@@ -565,16 +580,24 @@ export default function Home() {
         {/* SYSTEM EXPORT */}
         <div className="bg-white border border-blue-600 rounded-3xl p-6">
           <h2 className="font-bold uppercase tracking-widest text-sm text-blue-600 mb-4">SYSTEM EXPORT</h2>
-          <button
-            onClick={saveBillToDatabase}
-            disabled={isSaving}
-            className={`w-full rounded-xl px-4 py-3 font-bold uppercase tracking-widest text-sm transition-all ${isSaving
-                ? "bg-blue-400 text-white/70 cursor-not-allowed"
-                : "bg-blue-600 text-white hover:bg-blue-700"
-              }`}
-          >
-            {isSaving ? "Generating..." : "Generate Shareable Link"}
-          </button>
+          <div className="flex flex-col sm:flex-row gap-4 mt-6">
+            <button
+              onClick={saveBillToDatabase}
+              disabled={isSaving}
+              className={`w-full rounded-lg px-4 py-3 font-bold uppercase tracking-widest text-sm transition-all ${isSaving
+                  ? "bg-blue-400 text-white/70 cursor-not-allowed"
+                  : "bg-blue-600 text-white hover:bg-blue-700"
+                }`}
+            >
+              {isSaving ? "Generating..." : "Generate Shareable Link"}
+            </button>
+            <button
+              onClick={downloadReceipt}
+              className="w-full bg-[#4ade80] text-black font-bold py-3 rounded-lg hover:bg-green-500 transition-colors uppercase tracking-widest text-sm"
+            >
+              Download Receipt PNG
+            </button>
+          </div>
           {shareLink && (
             <div className="mt-4">
               <label className="block text-xs font-semibold uppercase tracking-widest text-blue-900 mb-2">
@@ -606,6 +629,136 @@ export default function Home() {
       <footer className="fixed bottom-6 left-6 text-[10px] text-blue-900 uppercase tracking-widest">
         MUIC | ID 6680024 | Kou
       </footer>
+
+      {/* HIDDEN RECEIPT DOM FOR PNG EXPORT */}
+      <div className="absolute top-[-9999px] left-[-9999px] pointer-events-none opacity-0">
+        <div ref={billRef} className="w-[500px] space-y-8 bg-black p-6 font-mono text-zinc-300">
+          <header className="border-b-2 border-zinc-900 pb-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-3 h-3 bg-cyan-500 rounded-full shadow-[0_0_10px_rgba(6,182,212,0.8)]"></div>
+              <h1 className="text-3xl font-black text-zinc-100 tracking-tight">HarnHub<span className="text-cyan-500">_</span>Split</h1>
+            </div>
+            <p className="text-zinc-600 text-xs tracking-widest uppercase break-all">Session_ID: [ LOCAL_SNAPSHOT ]</p>
+          </header>
+
+          <section className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl shadow-2xl">
+            <h2 className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 mb-6 font-bold flex items-center gap-2">
+              <span className="w-8 h-px bg-zinc-700"></span> Global Summary
+            </h2>
+            
+            <div className="space-y-4">
+              <div className="flex justify-between items-center border-b border-zinc-800/50 pb-2">
+                <span className="text-zinc-400">Subtotal</span>
+                <span className="text-zinc-100 font-medium">฿{items.reduce((sum, item) => sum + item.price, 0).toLocaleString()}</span>
+              </div>
+              {discount > 0 && (
+                <div className="flex justify-between items-center border-b border-zinc-800/50 pb-2 text-red-400">
+                  <span>Discount</span>
+                  <span className="font-medium">-฿{discount.toLocaleString()}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center border-b border-zinc-800/50 pb-2">
+                <span className="text-zinc-400">Service Charge</span>
+                <span className="text-cyan-400 font-bold">{activeSC}%</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-zinc-800/50 pb-2">
+                <span className="text-zinc-400">VAT</span>
+                <span className="text-emerald-400 font-bold">{activeVat}%</span>
+              </div>
+              <div className="pt-4 flex justify-between items-center">
+                <span className="text-zinc-500 uppercase text-xs tracking-[0.3em] font-black">Gross Total</span>
+                <span className="text-5xl font-black text-white dropshadow-sm">
+                   ฿{calculateTotals(items, activeSC, activeVat, discount).reduce((sum, res) => sum + (res.total || 0), 0).toLocaleString()}
+                </span>
+              </div>
+            </div>
+          </section>
+
+          <section className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl shadow-xl">
+             <h2 className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 mb-6 font-bold flex items-center gap-2">
+               <span className="w-8 h-px bg-zinc-700"></span> Receipt Data
+             </h2>
+             <div className="space-y-6">
+               {items.map((item) => (
+                 <div key={item.id} className="group">
+                   <div className="flex justify-between items-start mb-3">
+                     <span className="font-bold text-zinc-200 uppercase tracking-wide text-sm">{item.name || "Untitled"}</span>
+                     <span className="text-emerald-400 font-black bg-emerald-950/30 px-3 py-1 rounded-md text-sm border border-emerald-900/50">
+                       ฿{item.price.toLocaleString()}
+                     </span>
+                   </div>
+                   <div className="flex flex-wrap gap-2">
+                     {item.consumedBy.map(pId => {
+                       const p = participants.find(part => part.id === pId);
+                       return (
+                         <span key={pId} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 bg-zinc-950 text-cyan-400 rounded border border-cyan-900/50">
+                           {p?.name || "Unknown"}
+                         </span>
+                       )
+                     })}
+                   </div>
+                 </div>
+               ))}
+             </div>
+          </section>
+
+          <section className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl shadow-xl">
+            <h2 className="text-[10px] uppercase tracking-[0.2em] text-cyan-500 mb-6 font-bold flex items-center gap-2">
+              <span className="w-8 h-px bg-cyan-700"></span> User Share Manifest
+            </h2>
+            <div className="space-y-5">
+              {calculateTotals(items, activeSC, activeVat, discount).map((result) => {
+                const person = participants.find(p => p.id === result.id);
+                return (
+                  <div key={result.id} className="p-5 bg-black rounded-xl border border-zinc-800">
+                    <div className="flex justify-between items-center mb-6">
+                      <span className="text-xl font-black text-zinc-100 uppercase tracking-widest">{person?.name || "Unknown"}</span>
+                      <span className="text-3xl font-black text-emerald-400">
+                        ฿{(result.total || 0).toLocaleString()}
+                      </span>
+                    </div>
+                    
+                    <div className="pt-6 border-t border-zinc-800 border-dashed flex flex-col items-center">
+                       <div className="flex items-center gap-3 mb-4">
+                          <div className="h-px w-10 bg-zinc-800"></div>
+                          <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-black text-center">PromptPay Transfer</p>
+                          <div className="h-px w-10 bg-zinc-800"></div>
+                       </div>
+                       
+                       <div className="p-3 bg-zinc-950 rounded-2xl border border-zinc-800 flex flex-col items-center">
+                         {hostPromptPay ? (
+                           <>
+                             <div className="bg-white p-2 rounded-xl mb-3">
+                               <QRCodeSVG
+                                 value={promptpayQr(hostPromptPay, { amount: result.total || 0 })}
+                                 size={160}
+                                 bgColor="#ffffff"
+                                 fgColor="#000000"
+                                 level="Q"
+                               />
+                             </div>
+                             <span className="text-[10px] font-mono text-cyan-500 tracking-widest bg-cyan-950/30 px-3 py-1.5 rounded-full border border-cyan-900/50">
+                               {hostPromptPay}
+                             </span>
+                           </>
+                         ) : (
+                           <div className="w-40 h-40 flex items-center justify-center border-2 border-dashed border-red-900/50 rounded-xl">
+                             <span className="text-red-500 text-xs font-bold uppercase tracking-widest">No PromptPay</span>
+                           </div>
+                         )}
+                       </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+          
+          <footer className="mt-16 text-center">
+            <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-[0.3em]">HarnHub // Engineering Module</p>
+          </footer>
+        </div>
+      </div>
     </main>
   );
 }
