@@ -373,7 +373,6 @@ export default function Home() {
               <input
                 type="file"
                 accept="image/jpeg, image/png, image/webp"
-                capture="environment"
                 onChange={handleImageUpload}
                 disabled={isAnalyzing}
                 className="hidden"
