@@ -7,7 +7,7 @@ import { toPng } from "html-to-image";
 import { QRCodeSVG } from "qrcode.react";
 import promptpayQr from "promptpay-qr";
 import { calculateTotals } from "@/lib/math/splitEngine";
-import { supabase } from "@/lib/supabaseClient";
+import { createClient } from "@/utils/supabase/client";
 
 // Use the interface we defined earlier
 interface Participant {
@@ -23,6 +23,7 @@ interface BillItem {
 }
 
 export default function Home() {
+  const supabase = createClient();
   const [restaurantName, setRestaurantName] = useState("");
   const [items, setItems] = useState<BillItem[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -42,6 +43,12 @@ export default function Home() {
 
   const downloadReceipt = async () => {
     if (!billRef.current) return;
+    
+    // Silently log this into User History if generating a PNG
+    if (!shareLink) {
+      saveBillToDatabase();
+    }
+
     try {
       const dataUrl = await toPng(billRef.current, { cacheBust: true, backgroundColor: '#000000' });
       const link = document.createElement('a');
@@ -184,8 +191,11 @@ export default function Home() {
   };
 
   const saveBillToDatabase = async () => {
+    if (shareLink) return; // Prevent duplicate saves for the same session
     try {
       setIsSaving(true);
+      const { data: { user } } = await supabase.auth.getUser();
+
       const { data, error } = await supabase
         .from("bills")
         .insert([
@@ -195,6 +205,7 @@ export default function Home() {
             vat: vat,
             participants: participants,
             items: items,
+            ...(user ? { user_id: user.id } : {})
           },
         ])
         .select()

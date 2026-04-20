@@ -12,7 +12,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No image provided" }, { status: 400 });
     }
 
-    const cleanBase64 = body.image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, '');
+    const cleanBase64 = body.image.includes(',') ? body.image.split(',')[1] : body.image;
 
     console.log("=== THE KEY IS ===", process.env.GROQ_API_KEY);
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -55,8 +55,16 @@ export async function POST(req: Request) {
     // 1. LOG THE RAW OUTPUT: This will print exactly what the AI said in your terminal
     console.log("RAW AI RESPONSE:\n", responseText);
 
-    // 2. Clean the markdown
-    const cleanedText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+    // 2. Clean the markdown and isolate the JSON array
+    let cleanedText = responseText;
+    const startIndex = cleanedText.indexOf('[');
+    const endIndex = cleanedText.lastIndexOf(']');
+    
+    if (startIndex !== -1 && endIndex !== -1) {
+      cleanedText = cleanedText.substring(startIndex, endIndex + 1);
+    } else {
+      cleanedText = cleanedText.replace(/```json/g, '').replace(/```/g, '').trim();
+    }
 
     // 3. Defensively parse the JSON
     let parsedData;

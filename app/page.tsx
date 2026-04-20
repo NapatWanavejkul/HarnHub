@@ -1,10 +1,30 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Utensils, Home as HomeIcon, Plane } from "lucide-react";
+import { Utensils, Home as HomeIcon, Plane, Clock } from "lucide-react";
+import AuthButton from "@/components/AuthButton";
+import { createClient } from "@/utils/supabase/server";
 
-export default function HarnHubLanding() {
+export default async function HarnHubLanding() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  let historyData = null;
+  if (user) {
+    const { data } = await supabase
+      .from('bills')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(5);
+    historyData = data;
+  }
+
   return (
     <main className="relative min-h-screen text-black p-6 font-sans flex flex-col items-center justify-center">
+      
+      <div className="absolute top-6 right-6 z-50">
+        <AuthButton />
+      </div>
       
       <div className="relative z-10 w-full max-w-4xl py-12 md:py-24">
         {/* Hero Section */}
@@ -78,6 +98,33 @@ export default function HarnHubLanding() {
             <p>3. Assign items to members and instantly generate a PromptPay QR code or PNG.</p>
           </div>
         </div>
+
+        {/* User History Block */}
+        {user && (
+          <div className="mt-6 p-6 bg-white/60 backdrop-blur-md rounded-xl border border-white/80 shadow-lg">
+            <h2 className="text-sm font-black tracking-widest text-zinc-800 mb-4 uppercase flex items-center gap-2">
+              <Clock size={16} /> Recent Splits
+            </h2>
+            {historyData && historyData.length > 0 ? (
+              <div className="space-y-3">
+                {historyData.map((bill: any) => (
+                  <Link href={`/bill/${bill.id}`} key={bill.id} className="block group">
+                    <div className="flex justify-between items-center p-3 rounded-lg border border-zinc-200 hover:border-violet-400 bg-white/50 transition-colors">
+                      <span className="text-sm font-bold text-zinc-600 group-hover:text-violet-600 uppercase tracking-widest">
+                        {new Date(bill.created_at).toLocaleDateString()}
+                      </span>
+                      <span className="text-xs px-2 py-1 bg-violet-100 text-violet-700 rounded-md font-bold shadow-sm">
+                        View Receipt &rarr;
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-zinc-500 font-bold">No history available yet. Create a split to log it here!</p>
+            )}
+          </div>
+        )}
       </div>
       
       <footer className="relative z-10 mt-auto pb-6 text-[10px] text-zinc-600 font-black uppercase tracking-[0.3em] drop-shadow-md">

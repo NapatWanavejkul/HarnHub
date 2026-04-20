@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { createClient } from "@/utils/supabase/client";
 import { calculateTotals } from "@/lib/math/splitEngine";
 import { QRCodeSVG } from "qrcode.react";
 import promptpayQr from "promptpay-qr";
@@ -31,6 +31,7 @@ interface BillData {
 }
 
 export default function BillPage() {
+  const supabase = createClient();
   const params = useParams();
   const printRef = useRef<HTMLDivElement>(null);
   const [billData, setBillData] = useState<BillData | null>(null);
