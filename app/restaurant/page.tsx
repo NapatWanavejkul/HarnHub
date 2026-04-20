@@ -83,7 +83,7 @@ export default function Home() {
     }
 
     try {
-      const dataUrl = await toPng(billRef.current, { cacheBust: true, backgroundColor: '#000000' });
+      const dataUrl = await toPng(billRef.current, { cacheBust: true, pixelRatio: 2 });
       const link = document.createElement('a');
       link.href = dataUrl;
       link.download = 'harnhub-receipt.png';
@@ -779,131 +779,131 @@ export default function Home() {
 
       {/* HIDDEN RECEIPT DOM FOR PNG EXPORT */}
       <div className="absolute top-[-9999px] left-[-9999px] pointer-events-none opacity-0">
-        <div ref={billRef} className="w-[500px] space-y-8 bg-black p-6 font-mono text-zinc-300">
-          <header className="border-b-2 border-zinc-900 pb-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-3 h-3 bg-indigo-400 rounded-full shadow-[0_0_10px_rgba(6,182,212,0.8)]"></div>
-              <h1 className="text-3xl font-black text-zinc-100 tracking-tight">HarnHub<span className="text-indigo-400">_</span>Split</h1>
-            </div>
-            <p className="text-zinc-600 text-xs tracking-widest uppercase break-all">Session_ID: [ LOCAL_SNAPSHOT ]</p>
-          </header>
+        <div ref={billRef} className="w-[500px] p-8 font-sans text-slate-900 relative rounded-3xl overflow-hidden bg-[url('/HarnHub.jpg')] bg-cover bg-center">
+          <div className="absolute inset-0 bg-white/70 backdrop-blur-xl z-0 pointer-events-none"></div>
+          
+          <div className="relative z-10 flex flex-col gap-6">
+            <header className="border-b border-violet-300 pb-6 text-center">
+              <h1 className="text-4xl font-black tracking-tighter text-indigo-900 mb-2">
+                HarnHub <span className="text-violet-600 text-sm font-normal">หารฮับ</span>
+              </h1>
+              <p className="text-violet-700 text-[10px] tracking-widest uppercase font-black opacity-70">Shareable Summary</p>
+            </header>
 
-          <section className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl shadow-2xl">
-            <h2 className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 mb-6 font-bold flex items-center gap-2">
-              <span className="w-8 h-px bg-zinc-700"></span> Global Summary
-            </h2>
-            
-            <div className="space-y-4">
-              <div className="flex justify-between items-center border-b border-zinc-800/50 pb-2">
-                <span className="text-zinc-400">Subtotal</span>
-                <span className="text-zinc-100 font-medium">฿{items.reduce((sum, item) => sum + item.price, 0).toLocaleString()}</span>
-              </div>
-              {discount > 0 && (
-                <div className="flex justify-between items-center border-b border-zinc-800/50 pb-2 text-red-400">
-                  <span>Discount</span>
-                  <span className="font-medium">-฿{discount.toLocaleString()}</span>
+            {/* Global Summary block */}
+            <section className="bg-white/90 border border-violet-300 p-6 rounded-3xl shadow-xl">
+              <h2 className="text-[10px] uppercase tracking-widest text-violet-500 mb-5 font-black flex items-center justify-between">
+                <span>Global Summary</span>
+                <Calculator size={14} />
+              </h2>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center border-b border-violet-100 pb-2">
+                  <span className="text-zinc-600 font-bold">Subtotal</span>
+                  <span className="text-slate-900 font-black">฿{items.reduce((sum, item) => sum + item.price, 0).toLocaleString()}</span>
                 </div>
-              )}
-              <div className="flex justify-between items-center border-b border-zinc-800/50 pb-2">
-                <span className="text-zinc-400">Service Charge</span>
-                <span className="text-cyan-400 font-bold">{activeSC}%</span>
+                {discount > 0 && (
+                  <div className="flex justify-between items-center border-b border-violet-100 pb-2 text-rose-500">
+                    <span className="font-bold">Discount</span>
+                    <span className="font-black">-฿{discount.toLocaleString()}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center border-b border-violet-100 pb-2">
+                  <span className="text-zinc-600 font-bold">Service Charge</span>
+                  <span className="text-indigo-600 font-black">{activeSC}%</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-violet-100 pb-2">
+                  <span className="text-zinc-600 font-bold">VAT</span>
+                  <span className="text-emerald-600 font-black">{activeVat}%</span>
+                </div>
+                <div className="pt-2 flex justify-between items-center">
+                  <span className="text-violet-500 uppercase text-xs tracking-widest font-black">Total</span>
+                  <span className="text-4xl font-black text-indigo-900">
+                     ฿{calculateTotals(items, activeSC, activeVat, discount).reduce((sum, res) => sum + (res.total || 0), 0).toLocaleString()}
+                  </span>
+                </div>
               </div>
-              <div className="flex justify-between items-center border-b border-zinc-800/50 pb-2">
-                <span className="text-zinc-400">VAT</span>
-                <span className="text-emerald-400 font-bold">{activeVat}%</span>
-              </div>
-              <div className="pt-4 flex justify-between items-center">
-                <span className="text-zinc-500 uppercase text-xs tracking-[0.3em] font-black">Gross Total</span>
-                <span className="text-5xl font-black text-white dropshadow-sm">
-                   ฿{calculateTotals(items, activeSC, activeVat, discount).reduce((sum, res) => sum + (res.total || 0), 0).toLocaleString()}
-                </span>
-              </div>
-            </div>
-          </section>
+            </section>
 
-          <section className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl shadow-xl">
-             <h2 className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 mb-6 font-bold flex items-center gap-2">
-               <span className="w-8 h-px bg-zinc-700"></span> Receipt Data
-             </h2>
-             <div className="space-y-6">
-               {items.map((item) => (
-                 <div key={item.id} className="group">
-                   <div className="flex justify-between items-start mb-3">
-                     <span className="font-bold text-zinc-200 uppercase tracking-wide text-sm">{item.name || "Untitled"}</span>
-                     <span className="text-emerald-400 font-black bg-emerald-950/30 px-3 py-1 rounded-md text-sm border border-emerald-900/50">
-                       ฿{item.price.toLocaleString()}
-                     </span>
+            {/* Receipt Data block */}
+            <section className="bg-white/90 border border-violet-300 p-6 rounded-3xl shadow-xl">
+               <h2 className="text-[10px] uppercase tracking-widest text-violet-500 mb-5 font-black flex items-center justify-between">
+                 <span>Items</span>
+                 <Receipt size={14} />
+               </h2>
+               <div className="space-y-6">
+                 {items.map((item) => (
+                   <div key={item.id} className="group">
+                     <div className="flex justify-between items-start mb-3">
+                       <span className="font-bold text-slate-800 tracking-wide text-sm">{item.name || "Untitled"}</span>
+                       <span className="text-indigo-700 font-black bg-indigo-50 px-3 py-1 rounded-md text-sm border border-indigo-200">
+                         ฿{item.price.toLocaleString()}
+                       </span>
+                     </div>
+                     <div className="flex flex-wrap gap-2">
+                       {item.consumedBy.map(pId => {
+                         const p = participants.find(part => part.id === pId);
+                         return (
+                           <span key={pId} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 bg-white text-violet-600 rounded-full border border-violet-200 shadow-sm">
+                             {p?.name || "Unknown"}
+                           </span>
+                         )
+                       })}
+                     </div>
                    </div>
-                   <div className="flex flex-wrap gap-2">
-                     {item.consumedBy.map(pId => {
-                       const p = participants.find(part => part.id === pId);
-                       return (
-                         <span key={pId} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 bg-zinc-950 text-cyan-400 rounded border border-cyan-900/50">
-                           {p?.name || "Unknown"}
+                 ))}
+               </div>
+            </section>
+
+            {/* User Share Manifest Block */}
+            <section className="bg-white/90 border border-violet-300 p-6 rounded-3xl shadow-xl">
+               <h2 className="text-[10px] uppercase tracking-widest text-violet-500 mb-5 font-black flex items-center justify-between">
+                 <span>Final Splits</span>
+                 <Users size={14} />
+               </h2>
+               <div className="space-y-5">
+                 {calculateTotals(items, activeSC, activeVat, discount).map((result) => {
+                   const person = participants.find(p => p.id === result.id);
+                   return (
+                     <div key={result.id} className="p-6 bg-white rounded-2xl border border-violet-200 shadow-sm">
+                       <div className="flex flex-col items-center mb-6">
+                         <span className="text-lg font-black text-slate-800 uppercase tracking-widest mb-2">{person?.name || "Unknown"}</span>
+                         <span className="text-4xl font-black text-indigo-700">
+                           ฿{(result.total || 0).toLocaleString()}
                          </span>
-                       )
-                     })}
-                   </div>
-                 </div>
-               ))}
-             </div>
-          </section>
-
-          <section className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl shadow-xl">
-            <h2 className="text-[10px] uppercase tracking-[0.2em] text-indigo-400 mb-6 font-bold flex items-center gap-2">
-              <span className="w-8 h-px bg-cyan-700"></span> User Share Manifest
-            </h2>
-            <div className="space-y-5">
-              {calculateTotals(items, activeSC, activeVat, discount).map((result) => {
-                const person = participants.find(p => p.id === result.id);
-                return (
-                  <div key={result.id} className="p-5 bg-black rounded-xl border border-zinc-800">
-                    <div className="flex justify-between items-center mb-6">
-                      <span className="text-xl font-black text-zinc-100 uppercase tracking-widest">{person?.name || "Unknown"}</span>
-                      <span className="text-3xl font-black text-emerald-400">
-                        ฿{(result.total || 0).toLocaleString()}
-                      </span>
-                    </div>
-                    
-                    <div className="pt-6 border-t border-zinc-800 border-dashed flex flex-col items-center">
-                       <div className="flex items-center gap-3 mb-4">
-                          <div className="h-px w-10 bg-zinc-800"></div>
-                          <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-black text-center">PromptPay Transfer</p>
-                          <div className="h-px w-10 bg-zinc-800"></div>
                        </div>
                        
-                       <div className="p-3 bg-zinc-950 rounded-2xl border border-zinc-800 flex flex-col items-center">
-                         {hostPromptPay ? (
-                           <>
-                             <div className="bg-white p-2 rounded-xl mb-3">
-                               <QRCodeSVG
-                                 value={promptpayQr(hostPromptPay, { amount: result.total || 0 })}
-                                 size={160}
-                                 bgColor="#ffffff"
-                                 fgColor="#000000"
-                                 level="Q"
-                               />
-                             </div>
-                             <span className="text-[10px] font-mono text-cyan-500 tracking-widest bg-cyan-950/30 px-3 py-1.5 rounded-full border border-cyan-900/50">
-                               {hostPromptPay}
-                             </span>
-                           </>
-                         ) : (
-                           <div className="w-40 h-40 flex items-center justify-center border-2 border-dashed border-red-900/50 rounded-xl">
-                             <span className="text-red-500 text-xs font-bold uppercase tracking-widest">No PromptPay</span>
-                           </div>
-                         )}
+                       <div className="pt-6 border-t border-dashed border-violet-300 flex flex-col items-center">
+                          <p className="text-[9px] text-violet-500 uppercase tracking-widest font-black text-center mb-4">PromptPay Transfer</p>
+                          
+                          <div className="p-3 bg-violet-50 rounded-3xl border border-violet-200 flex flex-col items-center">
+                            {hostPromptPay ? (
+                              <>
+                                <div className="bg-white p-3 rounded-2xl mb-3 shadow-sm border border-violet-100">
+                                  <QRCodeSVG
+                                    value={promptpayQr(hostPromptPay, { amount: result.total || 0 })}
+                                    size={160}
+                                    bgColor="#ffffff"
+                                    fgColor="#1e1b4b"
+                                    level="Q"
+                                  />
+                                </div>
+                                <span className="text-[10px] font-bold text-violet-700 tracking-widest bg-white px-4 py-2 rounded-full shadow-sm border border-violet-200">
+                                  {hostPromptPay}
+                                </span>
+                              </>
+                            ) : (
+                              <div className="w-40 h-40 flex items-center justify-center border-2 border-dashed border-rose-300 bg-rose-50 rounded-2xl">
+                                <span className="text-rose-500 text-[10px] font-black uppercase tracking-widest text-center leading-tight">No<br/>PromptPay</span>
+                              </div>
+                            )}
+                          </div>
                        </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </section>
-          
-          <footer className="mt-16 text-center">
-            <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-[0.3em]">HarnHub // Engineering Module</p>
-          </footer>
+                     </div>
+                   )
+                 })}
+               </div>
+            </section>
+          </div>
         </div>
       </div>
     </main>
