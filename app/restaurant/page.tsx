@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Plus, Trash2, Calculator, Receipt, Users } from "lucide-react";
 import { toPng } from "html-to-image";
@@ -11,6 +11,11 @@ import { createClient } from "@/utils/supabase/client";
 
 // Use the interface we defined earlier
 interface Participant {
+  id: string;
+  name: string;
+}
+
+interface SavedFriend {
   id: string;
   name: string;
 }
@@ -39,7 +44,35 @@ export default function Home() {
   const [discount, setDiscount] = useState<number>(0);
   const [targetTotal, setTargetTotal] = useState<number | "">("");
   const [stagedItems, setStagedItems] = useState<Array<{name: string, price: number}> | null>(null);
+  const [savedFriends, setSavedFriends] = useState<SavedFriend[]>([]);
   const billRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        supabase.from('friends')
+          .select('id, name')
+          .eq('user_id', user.id)
+          .limit(10)
+          .then(({ data, error }) => {
+            if (error) console.error("Supabase Fetch Friends Error:", error);
+            if (data) setSavedFriends(data);
+          });
+      }
+    });
+  }, [supabase]);
+
+  const addQuickFriend = (name: string) => {
+    if (!participants.some(p => p.name.trim().toLowerCase() === name.trim().toLowerCase())) {
+      setParticipants([...participants, { id: Math.random().toString(36).substr(2, 9), name }]);
+    }
+  };
+
+  const deleteSavedFriend = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSavedFriends(savedFriends.filter(f => f.id !== id));
+    await supabase.from('friends').delete().eq('id', id);
+  };
 
   const downloadReceipt = async () => {
     if (!billRef.current) return;
@@ -196,6 +229,33 @@ export default function Home() {
       setIsSaving(true);
       const { data: { user } } = await supabase.auth.getUser();
 
+      if (user) {
+        // Extract names to save
+        const uniqueNames = Array.from(new Set(participants.map(p => p.name.trim()).filter(n => n !== "")));
+        const newFriendsToSave = uniqueNames.filter(
+          name => !savedFriends.some(sf => sf.name.trim().toLowerCase() === name.toLowerCase())
+        );
+
+        if (newFriendsToSave.length > 0) {
+          const insertPayload = newFriendsToSave.map(name => ({
+            user_id: user.id,
+            name: name
+          }));
+          
+          const { error: insertError } = await supabase.from('friends').insert(insertPayload);
+          if (insertError) console.error("Supabase Insert Friends Error:", insertError);
+          
+          // Refetch to sync IDs
+          const { data: updatedFriends, error: fetchError } = await supabase.from('friends')
+            .select('id, name')
+            .eq('user_id', user.id)
+            .limit(10);
+            
+          if (fetchError) console.error("Supabase Refetch Friends Error:", fetchError);
+          if (updatedFriends) setSavedFriends(updatedFriends);
+        }
+      }
+
       const { data, error } = await supabase
         .from("bills")
         .insert([
@@ -304,6 +364,28 @@ export default function Home() {
               <Plus size={18} />
               <span>Add Friend</span>
             </button>
+
+            {savedFriends.length > 0 && (
+              <div className="pt-4 mt-4 border-t border-violet-100 flex flex-wrap gap-2 animate-in fade-in">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-violet-300 w-full mb-1">Quick Add Recent</span>
+                {savedFriends.map((friend) => (
+                  <div 
+                    key={friend.id} 
+                    className="flex items-center gap-1.5 bg-violet-50 hover:bg-violet-100 border border-violet-200 text-violet-700 font-bold px-3 py-1.5 rounded-full text-xs cursor-pointer transition-all shadow-sm hover:shadow-md"
+                    onClick={() => addQuickFriend(friend.name)}
+                  >
+                    <Plus size={12} className="opacity-50" />
+                    <span>{friend.name}</span>
+                    <div 
+                      className="ml-1 p-0.5 rounded-full hover:bg-red-100 hover:text-red-500 text-violet-300 transition-colors"
+                      onClick={(e) => deleteSavedFriend(friend.id, e)}
+                    >
+                      <Trash2 size={12} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div className="absolute top-0 left-0 w-4 h-4 border-l-2 border-t-2 border-violet-400"></div>
           <div className="absolute top-0 right-0 w-4 h-4 border-r-2 border-t-2 border-violet-400"></div>
