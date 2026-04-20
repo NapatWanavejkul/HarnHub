@@ -32,5 +32,5 @@ export const calculateTotals = (
       id,
       total: Math.round(withVAT * 100) / 100,
     };
-  });
+  }).sort((a, b) => a.id.localeCompare(b.id));
 };

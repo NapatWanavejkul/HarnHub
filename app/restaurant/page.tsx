@@ -37,6 +37,7 @@ export default function Home() {
   const [includeVat, setIncludeVat] = useState<boolean>(false);
   const [discount, setDiscount] = useState<number>(0);
   const [targetTotal, setTargetTotal] = useState<number | "">("");
+  const [stagedItems, setStagedItems] = useState<Array<{name: string, price: number}> | null>(null);
   const billRef = useRef<HTMLDivElement>(null);
 
   const downloadReceipt = async () => {
@@ -151,14 +152,12 @@ export default function Home() {
             if (extractedItems.length === 0) {
               alert("Couldn't find any valid items in this receipt.");
             } else {
-              const newItems: BillItem[] = extractedItems.map((item: any) => ({
-                id: Math.random().toString(36).substr(2, 9),
+              const parsedData = extractedItems.map((item: any) => ({
                 name: item.name,
-                price: Number(item.price),
-                consumedBy: []
+                price: Number(item.price)
               }));
 
-              setItems(prev => [...prev, ...newItems]);
+              setStagedItems(parsedData);
             }
           } catch (apiError: any) {
             console.error("Vision AI Error:", apiError);
@@ -222,7 +221,7 @@ export default function Home() {
   const activeVat = includeVat ? vat : 0;
 
   return (
-    <main className="min-h-screen bg-gray-50 text-slate-900 p-6 font-sans">
+    <main className="min-h-screen text-slate-900 p-6 font-sans bg-transparent">
       {/* 3. SESSION LOG: 
           - Question: How to fix lucide-react error? 
           - Answer: Ran npm install lucide-react.
@@ -231,7 +230,7 @@ export default function Home() {
       */}
 
       <header className="mb-10 max-w-2xl mx-auto">
-        <h1 className="text-4xl font-black tracking-tighter text-[#06b6d4]">
+        <h1 className="text-4xl font-black tracking-tighter text-[indigo-400]">
           HarnHub <span className="text-zinc-600 text-sm font-normal">หารฮับ</span>
         </h1>
         <p className="text-zinc-500">Smart Split Prototype | Phase 1</p>
@@ -244,28 +243,28 @@ export default function Home() {
         </Link>
         
         {/* Restaurant Info Card */}
-        <div className="relative bg-white border border-blue-600 rounded-3xl p-6">
+        <div className="relative bg-white border border-violet-400 rounded-3xl p-6">
           <input
             type="text"
             placeholder="Where are you eating?"
             value={restaurantName}
             onChange={(e) => setRestaurantName(e.target.value)}
-            className="w-full bg-white border border-blue-600 rounded-xl p-4 text-xl font-bold outline-none focus:border-blue-600 transition-all"
+            className="w-full bg-white border border-violet-400 rounded-xl p-4 text-xl font-bold outline-none focus:border-violet-400 transition-all"
           />
-          <div className="absolute top-0 left-0 w-4 h-4 border-l-2 border-t-2 border-blue-600"></div>
-          <div className="absolute top-0 right-0 w-4 h-4 border-r-2 border-t-2 border-blue-600"></div>
-          <div className="absolute bottom-0 left-0 w-4 h-4 border-l-2 border-b-2 border-blue-600"></div>
-          <div className="absolute bottom-0 right-0 w-4 h-4 border-r-2 border-b-2 border-blue-600"></div>
+          <div className="absolute top-0 left-0 w-4 h-4 border-l-2 border-t-2 border-violet-400"></div>
+          <div className="absolute top-0 right-0 w-4 h-4 border-r-2 border-t-2 border-violet-400"></div>
+          <div className="absolute bottom-0 left-0 w-4 h-4 border-l-2 border-b-2 border-violet-400"></div>
+          <div className="absolute bottom-0 right-0 w-4 h-4 border-r-2 border-b-2 border-violet-400"></div>
         </div>
 
         {/* Table Members */}
-        <div className="relative bg-white border border-blue-600 rounded-3xl p-6 shadow-2xl">
+        <div className="relative bg-white border border-violet-400 rounded-3xl p-6 shadow-2xl">
           <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-2 text-blue-600">
+            <div className="flex items-center space-x-2 text-violet-400">
               <Users size={20} />
               <h2 className="font-bold uppercase tracking-widest text-sm">Table Members</h2>
             </div>
-            <span className="text-xs text-blue-600">{participants.length} members</span>
+            <span className="text-xs text-violet-400">{participants.length} members</span>
           </div>
 
           <div className="space-y-3">
@@ -276,7 +275,7 @@ export default function Home() {
                   placeholder="Friend's name"
                   value={participant.name}
                   onChange={(e) => updateParticipant(participant.id, e.target.value)}
-                  className="flex-1 bg-white border border-blue-600 rounded-xl p-3 text-sm outline-none focus:border-blue-600"
+                  className="flex-1 bg-white border border-violet-400 rounded-xl p-3 text-sm outline-none focus:border-violet-400"
                 />
                 <button
                   onClick={() => removeParticipant(participant.id)}
@@ -289,26 +288,78 @@ export default function Home() {
 
             <button
               onClick={addParticipant}
-              className="w-full py-4 border-2 border-dashed border-blue-600 rounded-2xl text-blue-600 hover:border-blue-600 hover:text-blue-600 hover:bg-blue-600/5 transition-all flex items-center justify-center space-x-2"
+              className="w-full py-4 border-2 border-dashed border-violet-400 rounded-2xl text-violet-400 hover:border-violet-400 hover:text-violet-400 hover:bg-violet-400/5 transition-all flex items-center justify-center space-x-2"
             >
               <Plus size={18} />
               <span>Add Friend</span>
             </button>
           </div>
-          <div className="absolute top-0 left-0 w-4 h-4 border-l-2 border-t-2 border-blue-600"></div>
-          <div className="absolute top-0 right-0 w-4 h-4 border-r-2 border-t-2 border-blue-600"></div>
-          <div className="absolute bottom-0 left-0 w-4 h-4 border-l-2 border-b-2 border-blue-600"></div>
-          <div className="absolute bottom-0 right-0 w-4 h-4 border-r-2 border-b-2 border-blue-600"></div>
+          <div className="absolute top-0 left-0 w-4 h-4 border-l-2 border-t-2 border-violet-400"></div>
+          <div className="absolute top-0 right-0 w-4 h-4 border-r-2 border-t-2 border-violet-400"></div>
+          <div className="absolute bottom-0 left-0 w-4 h-4 border-l-2 border-b-2 border-violet-400"></div>
+          <div className="absolute bottom-0 right-0 w-4 h-4 border-r-2 border-b-2 border-violet-400"></div>
         </div>
 
+        {stagedItems !== null ? (
+          <div className="bg-zinc-900 border border-indigo-400 rounded-3xl p-6 shadow-2xl text-white">
+            <div className="flex items-center space-x-2 text-indigo-400 mb-6">
+              <Receipt size={20} />
+              <h2 className="font-bold uppercase tracking-widest text-sm">Audit Receipt</h2>
+            </div>
+            
+            <div className="space-y-3 mb-6">
+              {stagedItems.map((item, index) => (
+                <div key={index} className="flex space-x-2">
+                  <input
+                    type="text"
+                    value={item.name}
+                    onChange={(e) => {
+                      const newStaged = [...stagedItems];
+                      newStaged[index] = { ...newStaged[index], name: e.target.value };
+                      setStagedItems(newStaged);
+                    }}
+                    className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl p-3 text-sm outline-none focus:border-indigo-400 text-white"
+                  />
+                  <input
+                    type="number"
+                    value={item.price}
+                    onChange={(e) => {
+                      const newStaged = [...stagedItems];
+                      newStaged[index] = { ...newStaged[index], price: parseFloat(e.target.value) || 0 };
+                      setStagedItems(newStaged);
+                    }}
+                    className="w-24 bg-zinc-800 border border-zinc-700 rounded-xl p-3 text-sm outline-none focus:border-indigo-400 text-white"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => {
+                const newItems: BillItem[] = stagedItems.map((item) => ({
+                  id: Math.random().toString(36).substr(2, 9),
+                  name: item.name,
+                  price: item.price,
+                  consumedBy: []
+                }));
+                setItems((prev) => [...prev, ...newItems]);
+                setStagedItems(null);
+              }}
+              className="w-full bg-indigo-500 text-white font-bold uppercase tracking-widest text-sm py-4 rounded-xl hover:bg-green-500 transition-colors"
+            >
+              Confirm & Add to Bill
+            </button>
+          </div>
+        ) : (
+          <>
         {/* Items List */}
-        <div className="relative bg-white border border-blue-600 rounded-3xl p-6 shadow-2xl">
+        <div className="relative bg-white border border-violet-400 rounded-3xl p-6 shadow-2xl">
           <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-2 text-blue-600">
+            <div className="flex items-center space-x-2 text-violet-400">
               <Receipt size={20} />
               <h2 className="font-bold uppercase tracking-widest text-sm">Bill Items</h2>
             </div>
-            <span className="text-xs text-blue-600">{items.length} items added</span>
+            <span className="text-xs text-violet-400">{items.length} items added</span>
           </div>
 
           <div className="space-y-3">
@@ -325,7 +376,7 @@ export default function Home() {
                     placeholder="Item name"
                     value={item.name}
                     onChange={(e) => updateItem(item.id, 'name', e.target.value)}
-                    className="flex-1 bg-white border border-blue-600 rounded-xl p-3 text-sm outline-none focus:border-blue-600"
+                    className="flex-1 bg-white border border-violet-400 rounded-xl p-3 text-sm outline-none focus:border-violet-400"
                   />
                   <div className="flex flex-col w-28 shrink-0">
                     <input
@@ -333,10 +384,10 @@ export default function Home() {
                       placeholder="Price"
                       value={item.price || ""}
                       onChange={(e) => updateItem(item.id, 'price', parseFloat(e.target.value) || 0)}
-                      className="w-full bg-white border border-blue-600 rounded-xl p-3 text-sm outline-none focus:border-blue-600"
+                      className="w-full bg-white border border-violet-400 rounded-xl p-3 text-sm outline-none focus:border-violet-400"
                     />
                     {item.price > 0 && (
-                      <span className="text-[10px] font-bold text-[#06b6d4] text-right mt-1 pr-1 tracking-widest uppercase">
+                      <span className="text-[10px] font-bold text-[indigo-400] text-right mt-1 pr-1 tracking-widest uppercase">
                         Net ฿{finalNetPrice.toFixed(2)}
                       </span>
                     )}
@@ -356,8 +407,8 @@ export default function Home() {
                         key={participant.id}
                         onClick={() => toggleConsumedBy(item.id, participant.id)}
                         className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${isConsumed
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-transparent border border-blue-600 text-blue-600'
+                            ? 'bg-violet-400 text-white'
+                            : 'bg-transparent border border-violet-400 text-violet-400'
                           }`}
                       >
                         {participant.name || 'Unnamed'}
@@ -385,30 +436,30 @@ export default function Home() {
 
             <button
               onClick={addItem}
-              className="w-full py-4 border-2 border-dashed border-blue-600 rounded-2xl text-blue-600 hover:border-blue-600 hover:text-blue-600 hover:bg-blue-600/5 transition-all flex items-center justify-center space-x-2"
+              className="w-full py-4 border-2 border-dashed border-violet-400 rounded-2xl text-violet-400 hover:border-violet-400 hover:text-violet-400 hover:bg-violet-400/5 transition-all flex items-center justify-center space-x-2"
             >
               <Plus size={18} />
               <span>Add Item</span>
             </button>
           </div>
-          <div className="absolute top-0 left-0 w-4 h-4 border-l-2 border-t-2 border-blue-600"></div>
-          <div className="absolute top-0 right-0 w-4 h-4 border-r-2 border-t-2 border-blue-600"></div>
-          <div className="absolute bottom-0 left-0 w-4 h-4 border-l-2 border-b-2 border-blue-600"></div>
-          <div className="absolute bottom-0 right-0 w-4 h-4 border-r-2 border-b-2 border-blue-600"></div>
+          <div className="absolute top-0 left-0 w-4 h-4 border-l-2 border-t-2 border-violet-400"></div>
+          <div className="absolute top-0 right-0 w-4 h-4 border-r-2 border-t-2 border-violet-400"></div>
+          <div className="absolute bottom-0 left-0 w-4 h-4 border-l-2 border-b-2 border-violet-400"></div>
+          <div className="absolute bottom-0 right-0 w-4 h-4 border-r-2 border-b-2 border-violet-400"></div>
         </div>
 
         {/* HOST SETTINGS */}
         {items.length > 0 && (
-          <div className="bg-white border border-blue-600 rounded-3xl p-6 mb-4">
-            <h2 className="font-bold uppercase tracking-widest text-sm text-blue-600 mb-4">HOST SETTINGS</h2>
-            <label className="flex flex-col text-blue-900 text-sm gap-2">
+          <div className="bg-white border border-violet-400 rounded-3xl p-6 mb-4">
+            <h2 className="font-bold uppercase tracking-widest text-sm text-violet-400 mb-4">HOST SETTINGS</h2>
+            <label className="flex flex-col text-violet-900 text-sm gap-2">
               <span>Host PromptPay Number (Phone/ID)</span>
               <input
                 type="text"
                 value={hostPromptPay}
                 onChange={(e) => setHostPromptPay(e.target.value)}
                 placeholder="Enter PromptPay number"
-                className="bg-white border border-blue-600 rounded-xl p-3 text-sm text-black outline-none focus:border-blue-600"
+                className="bg-white border border-violet-400 rounded-xl p-3 text-sm text-black outline-none focus:border-violet-400"
               />
             </label>
           </div>
@@ -416,28 +467,28 @@ export default function Home() {
 
         {/* TAX & SERVICE SETTINGS */}
         {items.length > 0 && (
-          <div className="bg-white border border-blue-600 rounded-3xl p-6 mb-4">
-            <h2 className="font-bold uppercase tracking-widest text-sm text-blue-600 mb-4">DISCOUNT & TAXES</h2>
+          <div className="bg-white border border-violet-400 rounded-3xl p-6 mb-4">
+            <h2 className="font-bold uppercase tracking-widest text-sm text-violet-400 mb-4">DISCOUNT & TAXES</h2>
             <div className="mb-6">
-              <label className="flex flex-col text-blue-900 text-sm gap-2">
+              <label className="flex flex-col text-violet-900 text-sm gap-2">
                 <span className="font-medium">Total Discount (฿)</span>
                 <input
                   type="number"
                   value={discount > 0 ? discount : ""}
                   onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
                   placeholder="0"
-                  className="bg-white border border-blue-600 rounded-xl p-3 text-sm text-black outline-none focus:border-blue-600 w-full sm:w-1/2"
+                  className="bg-white border border-violet-400 rounded-xl p-3 text-sm text-black outline-none focus:border-violet-400 w-full sm:w-1/2"
                 />
               </label>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="flex flex-col text-blue-900 text-sm gap-2">
+              <label className="flex flex-col text-violet-900 text-sm gap-2">
                 <div className="flex items-center gap-2 cursor-pointer">
                   <input 
                     type="checkbox" 
                     checked={includeServiceCharge} 
                     onChange={(e) => setIncludeServiceCharge(e.target.checked)} 
-                    className="w-4 h-4 text-blue-600 rounded border-blue-600 focus:ring-blue-600"
+                    className="w-4 h-4 text-violet-400 rounded border-violet-400 focus:ring-violet-400"
                   />
                   <span className="font-medium">Service Charge (%)</span>
                 </div>
@@ -446,17 +497,17 @@ export default function Home() {
                     type="number"
                     value={serviceCharge}
                     onChange={(e) => setServiceCharge(parseFloat(e.target.value) || 0)}
-                    className="bg-white border border-blue-600 rounded-xl p-3 text-sm text-black outline-none focus:border-blue-600 animate-in fade-in slide-in-from-top-2"
+                    className="bg-white border border-violet-400 rounded-xl p-3 text-sm text-black outline-none focus:border-violet-400 animate-in fade-in slide-in-from-top-2"
                   />
                 )}
               </label>
-              <label className="flex flex-col text-blue-900 text-sm gap-2">
+              <label className="flex flex-col text-violet-900 text-sm gap-2">
                 <div className="flex items-center gap-2 cursor-pointer">
                   <input 
                     type="checkbox" 
                     checked={includeVat} 
                     onChange={(e) => setIncludeVat(e.target.checked)} 
-                    className="w-4 h-4 text-blue-600 rounded border-blue-600 focus:ring-blue-600"
+                    className="w-4 h-4 text-violet-400 rounded border-violet-400 focus:ring-violet-400"
                   />
                   <span className="font-medium">VAT (%)</span>
                 </div>
@@ -465,7 +516,7 @@ export default function Home() {
                     type="number"
                     value={vat}
                     onChange={(e) => setVat(parseFloat(e.target.value) || 0)}
-                    className="bg-white border border-blue-600 rounded-xl p-3 text-sm text-black outline-none focus:border-blue-600 animate-in fade-in slide-in-from-top-2"
+                    className="bg-white border border-violet-400 rounded-xl p-3 text-sm text-black outline-none focus:border-violet-400 animate-in fade-in slide-in-from-top-2"
                   />
                 )}
               </label>
@@ -484,7 +535,7 @@ export default function Home() {
           const diff = targetTotal === "" ? 0 : Math.abs(netTotal - Number(targetTotal));
 
           return (
-            <div className="bg-[#06b6d4] rounded-3xl p-6 text-black">
+            <div className="bg-[indigo-400] rounded-3xl p-6 text-black">
               <div className="flex justify-between items-center mb-4">
                 <div className="flex gap-8">
                   <div>
@@ -505,11 +556,11 @@ export default function Home() {
                 </div>
               </div>
               <div className="grid gap-2 sm:grid-cols-2 text-sm">
-                <div className="rounded-2xl border border-blue-600 bg-white/70 p-3 text-blue-900">
+                <div className="rounded-2xl border border-violet-400 bg-white/70 p-3 text-violet-900">
                   <p className="font-semibold uppercase tracking-widest">Service Charge</p>
                   <p>{activeSC}%</p>
                 </div>
-                <div className="rounded-2xl border border-blue-600 bg-white/70 p-3 text-blue-900">
+                <div className="rounded-2xl border border-violet-400 bg-white/70 p-3 text-violet-900">
                   <p className="font-semibold uppercase tracking-widest">VAT</p>
                   <p>{activeVat}%</p>
                 </div>
@@ -541,8 +592,8 @@ export default function Home() {
         {items.length > 0 && (() => {
           const splitResults = calculateTotals(items, activeSC, activeVat, discount);
           return (
-            <div className="bg-white border border-blue-600 rounded-3xl p-6">
-              <h2 className="font-bold uppercase tracking-widest text-sm text-blue-600 mb-4">Final Split</h2>
+            <div className="bg-white border border-violet-400 rounded-3xl p-6">
+              <h2 className="font-bold uppercase tracking-widest text-sm text-violet-400 mb-4">Final Split</h2>
               <div className="space-y-2">
                 {splitResults.map((result) => {
                   const person = participants.find(p => p.id === result.id);
@@ -550,20 +601,20 @@ export default function Home() {
                   return (
                     <div key={result.id} className="space-y-3">
                       <div className="flex items-center justify-between gap-3">
-                        <span className="text-blue-900 font-medium">{person?.name || 'Unknown'}</span>
+                        <span className="text-violet-900 font-medium">{person?.name || 'Unknown'}</span>
                         <div className="flex items-center gap-2">
                           <span className="text-black font-bold">฿{(result.total || 0).toLocaleString()}</span>
                           <button
                             type="button"
                             onClick={() => setActiveQR(result.id)}
-                            className="rounded-full border border-blue-600 px-3 py-1 text-xs uppercase tracking-widest text-blue-600 transition hover:bg-blue-600/10"
+                            className="rounded-full border border-violet-400 px-3 py-1 text-xs uppercase tracking-widest text-violet-400 transition hover:bg-violet-400/10"
                           >
                             Pay
                           </button>
                         </div>
                       </div>
                       {isActive && hostPromptPay && (
-                        <div className="rounded-3xl border border-blue-600 p-4 inline-block bg-white/95">
+                        <div className="rounded-3xl border border-violet-400 p-4 inline-block bg-white/95">
                           <QRCodeSVG
                             value={promptpayQr(hostPromptPay, { amount: result.total || 0 })}
                             size={156}
@@ -579,29 +630,29 @@ export default function Home() {
         })()}
 
         {/* SYSTEM EXPORT */}
-        <div className="bg-white border border-blue-600 rounded-3xl p-6">
-          <h2 className="font-bold uppercase tracking-widest text-sm text-blue-600 mb-4">SYSTEM EXPORT</h2>
+        <div className="bg-white border border-violet-400 rounded-3xl p-6">
+          <h2 className="font-bold uppercase tracking-widest text-sm text-violet-400 mb-4">SYSTEM EXPORT</h2>
           <div className="flex flex-col sm:flex-row gap-4 mt-6">
             <button
               onClick={saveBillToDatabase}
               disabled={isSaving}
               className={`w-full rounded-lg px-4 py-3 font-bold uppercase tracking-widest text-sm transition-all ${isSaving
-                  ? "bg-blue-400 text-white/70 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700"
+                  ? "bg-indigo-500 text-white/70 cursor-not-allowed"
+                  : "bg-violet-400 text-white hover:bg-violet-600"
                 }`}
             >
               {isSaving ? "Generating..." : "Generate Shareable Link"}
             </button>
             <button
               onClick={downloadReceipt}
-              className="w-full bg-[#4ade80] text-black font-bold py-3 rounded-lg hover:bg-green-500 transition-colors uppercase tracking-widest text-sm"
+              className="w-full bg-indigo-500 text-white font-bold py-3 rounded-lg hover:bg-green-500 transition-colors uppercase tracking-widest text-sm"
             >
               Download Receipt PNG
             </button>
           </div>
           {shareLink && (
             <div className="mt-4">
-              <label className="block text-xs font-semibold uppercase tracking-widest text-blue-900 mb-2">
+              <label className="block text-xs font-semibold uppercase tracking-widest text-violet-900 mb-2">
                 Share Link
               </label>
               <div className="relative">
@@ -610,14 +661,14 @@ export default function Home() {
                   value={shareLink}
                   readOnly
                   onClick={(e) => e.currentTarget.select()}
-                  className="w-full bg-blue-50 border border-blue-600 rounded-xl p-3 font-mono text-sm text-black outline-none"
+                  className="w-full bg-violet-50 border border-violet-400 rounded-xl p-3 font-mono text-sm text-black outline-none"
                 />
                 <button
                   type="button"
                   onClick={() => {
                     navigator.clipboard.writeText(shareLink);
                   }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg bg-blue-600 px-3 py-1 text-xs font-bold text-white hover:bg-blue-700"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg bg-violet-400 px-3 py-1 text-xs font-bold text-white hover:bg-violet-600"
                 >
                   Copy
                 </button>
@@ -625,9 +676,11 @@ export default function Home() {
             </div>
           )}
         </div>
+          </>
+        )}
       </div>
 
-      <footer className="fixed bottom-6 left-6 text-[10px] text-blue-900 uppercase tracking-widest">
+      <footer className="fixed bottom-6 left-6 text-[10px] text-violet-900 uppercase tracking-widest">
         MUIC | ID 6680024 | Kou
       </footer>
 
@@ -636,8 +689,8 @@ export default function Home() {
         <div ref={billRef} className="w-[500px] space-y-8 bg-black p-6 font-mono text-zinc-300">
           <header className="border-b-2 border-zinc-900 pb-6">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-3 h-3 bg-cyan-500 rounded-full shadow-[0_0_10px_rgba(6,182,212,0.8)]"></div>
-              <h1 className="text-3xl font-black text-zinc-100 tracking-tight">HarnHub<span className="text-cyan-500">_</span>Split</h1>
+              <div className="w-3 h-3 bg-indigo-400 rounded-full shadow-[0_0_10px_rgba(6,182,212,0.8)]"></div>
+              <h1 className="text-3xl font-black text-zinc-100 tracking-tight">HarnHub<span className="text-indigo-400">_</span>Split</h1>
             </div>
             <p className="text-zinc-600 text-xs tracking-widest uppercase break-all">Session_ID: [ LOCAL_SNAPSHOT ]</p>
           </header>
@@ -704,7 +757,7 @@ export default function Home() {
           </section>
 
           <section className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl shadow-xl">
-            <h2 className="text-[10px] uppercase tracking-[0.2em] text-cyan-500 mb-6 font-bold flex items-center gap-2">
+            <h2 className="text-[10px] uppercase tracking-[0.2em] text-indigo-400 mb-6 font-bold flex items-center gap-2">
               <span className="w-8 h-px bg-cyan-700"></span> User Share Manifest
             </h2>
             <div className="space-y-5">

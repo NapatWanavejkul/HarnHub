@@ -77,17 +77,17 @@ export default function MonthlySplit() {
   const amountPerPerson = members.length > 0 ? totalExpenses / members.length : 0;
 
   return (
-    <main className="min-h-screen bg-black text-white p-6 font-mono">
+    <main className="min-h-screen bg-transparent text-white p-6 font-mono">
       <div className="max-w-4xl mx-auto space-y-8 pb-20">
         
         {/* Navigation */}
-        <Link href="/" className="inline-flex items-center gap-2 text-zinc-400 hover:text-purple-400 transition-colors font-bold uppercase tracking-widest text-sm">
+        <Link href="/" className="inline-flex items-center gap-2 text-zinc-400 hover:text-indigo-400 transition-colors font-bold uppercase tracking-widest text-sm">
           &larr; Back to Hub
         </Link>
 
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-black uppercase tracking-widest text-purple-400 mb-2">Monthly Split</h1>
+          <h1 className="text-3xl font-black uppercase tracking-widest text-indigo-400 mb-2">Monthly Split</h1>
           <p className="text-zinc-500 text-sm uppercase tracking-widest">Fixed-Cost Routing Engine</p>
         </div>
 
@@ -107,7 +107,7 @@ export default function MonthlySplit() {
                   placeholder="Expense (e.g. Internet)"
                   value={expenseName}
                   onChange={(e) => setExpenseName(e.target.value)}
-                  className="flex-1 bg-black border border-zinc-800 rounded-xl px-4 py-3 text-sm outline-none focus:border-purple-500 transition-colors"
+                  className="flex-1 bg-black border border-zinc-800 rounded-xl px-4 py-3 text-sm outline-none focus:border-violet-500 transition-colors"
                   onKeyDown={(e) => e.key === 'Enter' && addExpense()}
                 />
                 <input
@@ -115,12 +115,12 @@ export default function MonthlySplit() {
                   placeholder="Amount"
                   value={expenseAmount}
                   onChange={(e) => setExpenseAmount(e.target.value)}
-                  className="w-28 bg-black border border-zinc-800 rounded-xl px-4 py-3 text-sm outline-none focus:border-purple-500 transition-colors"
+                  className="w-28 bg-black border border-zinc-800 rounded-xl px-4 py-3 text-sm outline-none focus:border-violet-500 transition-colors"
                   onKeyDown={(e) => e.key === 'Enter' && addExpense()}
                 />
                 <button
                   onClick={addExpense}
-                  className="bg-purple-600 hover:bg-purple-500 text-white p-3 rounded-xl transition-colors shrink-0 flex items-center justify-center p-3"
+                  className="bg-indigo-500 hover:bg-violet-500 text-white p-3 rounded-xl transition-colors shrink-0 flex items-center justify-center p-3"
                 >
                   <Plus size={20} />
                 </button>
@@ -132,7 +132,7 @@ export default function MonthlySplit() {
                 <div key={expense.id} className="flex items-center justify-between bg-black p-4 rounded-xl border border-zinc-800 group transition-colors hover:border-zinc-700">
                   <span className="font-bold uppercase tracking-widest text-xs sm:text-sm">{expense.name}</span>
                   <div className="flex items-center gap-4">
-                    <span className="text-purple-400 font-black text-sm sm:text-base">฿{expense.amount.toLocaleString()}</span>
+                    <span className="text-indigo-400 font-black text-sm sm:text-base">฿{expense.amount.toLocaleString()}</span>
                     <button onClick={() => removeExpense(expense.id)} className="text-zinc-600 hover:text-red-500 transition-colors shrink-0">
                       <Trash2 size={16} />
                     </button>
@@ -162,12 +162,12 @@ export default function MonthlySplit() {
                 placeholder="Roommate Name"
                 value={memberName}
                 onChange={(e) => setMemberName(e.target.value)}
-                className="flex-1 bg-black border border-zinc-800 rounded-xl px-4 py-3 text-sm outline-none focus:border-purple-500 transition-colors"
+                className="flex-1 bg-black border border-zinc-800 rounded-xl px-4 py-3 text-sm outline-none focus:border-violet-500 transition-colors"
                 onKeyDown={(e) => e.key === 'Enter' && addMember()}
               />
               <button
                 onClick={addMember}
-                className="bg-purple-600 hover:bg-purple-500 text-white py-3 px-6 rounded-xl font-bold uppercase tracking-widest text-sm transition-colors shrink-0 flex items-center gap-2"
+                className="bg-indigo-500 hover:bg-violet-500 text-white py-3 px-6 rounded-xl font-bold uppercase tracking-widest text-sm transition-colors shrink-0 flex items-center gap-2"
               >
                 Add <Plus size={16} />
               </button>
@@ -197,9 +197,9 @@ export default function MonthlySplit() {
         {members.length > 0 && expenses.length > 0 && (
           <div className="space-y-6 pt-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* The structural DOM bound for PNG Export */}
-            <div ref={splitRef} className="bg-black p-6 sm:p-10 rounded-[40px] border border-purple-500/30 shadow-[0_0_50px_rgba(168,85,247,0.1)]">
+            <div ref={splitRef} className="bg-black p-6 sm:p-10 rounded-[40px] border border-violet-500/30 shadow-[0_0_50px_rgba(168,85,247,0.1)]">
               <div className="flex items-center gap-3 mb-8 border-b border-zinc-900 pb-6">
-                <Calculator className="text-purple-500 animate-pulse" size={24} />
+                <Calculator className="text-violet-500 animate-pulse" size={24} />
                 <h2 className="text-2xl font-black uppercase tracking-widest text-white">Monthly Distribution</h2>
               </div>
               
@@ -208,9 +208,9 @@ export default function MonthlySplit() {
                     <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 mb-2 font-bold">Gross Calculation</p>
                     <p className="text-4xl font-black text-white dropshadow-sm">฿{totalExpenses.toLocaleString()}</p>
                 </div>
-                <div className="flex-1 bg-purple-950/20 p-6 rounded-3xl border border-purple-900/50">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-purple-400 mb-2 font-bold">Share Per Resident</p>
-                    <p className="text-3xl sm:text-4xl font-black text-purple-400 dropshadow-sm">฿{amountPerPerson.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                <div className="flex-1 bg-purple-950/20 p-6 rounded-3xl border border-indigo-900/50">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-indigo-400 mb-2 font-bold">Share Per Resident</p>
+                    <p className="text-3xl sm:text-4xl font-black text-indigo-400 dropshadow-sm">฿{amountPerPerson.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                 </div>
               </div>
 
@@ -218,7 +218,7 @@ export default function MonthlySplit() {
                 {members.map(member => (
                   <div key={member.id} className="flex justify-between items-center p-5 bg-zinc-900/80 rounded-2xl border border-zinc-800/80">
                      <span className="text-sm font-bold uppercase tracking-widest text-zinc-300">{member.name}</span>
-                     <span className="text-2xl font-black text-purple-300">฿{amountPerPerson.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                     <span className="text-2xl font-black text-rose-400">฿{amountPerPerson.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                   </div>
                 ))}
               </div>
@@ -230,7 +230,7 @@ export default function MonthlySplit() {
 
             <button
               onClick={downloadReceipt}
-              className="w-full bg-purple-600 hover:bg-purple-500 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:shadow-[0_0_30px_rgba(168,85,247,0.5)] flex justify-center items-center gap-3"
+              className="w-full bg-indigo-500 hover:bg-violet-500 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:shadow-[0_0_30px_rgba(168,85,247,0.5)] flex justify-center items-center gap-3"
             >
               <Download size={20} /> Export Monthly Breakdown
             </button>
