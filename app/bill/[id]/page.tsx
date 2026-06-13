@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
+import Image from "next/image";
 import { createClient } from "@/utils/supabase/client";
 import { calculateTotals } from "@/lib/math/splitEngine";
 import { QRCodeSVG } from "qrcode.react";
@@ -101,6 +102,25 @@ export default function BillPage() {
     if (!printRef.current) return;
     try {
       const dataUrl = await toPng(printRef.current, { cacheBust: true });
+      
+      // Attempt Web Share API first for direct iOS Save/Share Sheet
+      try {
+        const response = await fetch(dataUrl);
+        const blob = await response.blob();
+        const file = new File([blob], `HarnHub_Split_${billData?.id || "Export"}.png`, { type: 'image/png' });
+        
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'HarnHub Split summary',
+            text: 'Here is our bill split summary!',
+          });
+          return;
+        }
+      } catch (shareErr) {
+        console.log("Web Share failed or cancelled:", shareErr);
+      }
+      
       const link = document.createElement("a");
       link.download = `HarnHub_Split_${billData?.id || "Export"}.png`;
       link.href = dataUrl;
@@ -121,8 +141,16 @@ export default function BillPage() {
           {/* Header */}
         <header className="border-b-2 border-zinc-900 pb-6">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-3 h-3 bg-indigo-400 rounded-full animate-pulse shadow-[0_0_10px_rgba(6,182,212,0.8)]"></div>
-            <h1 className="text-3xl font-black text-zinc-100 tracking-tight">HarnHub<span className="text-indigo-400">_</span>Split</h1>
+            <div className="w-full max-w-[250px]">
+              <Image 
+                src="/bannerlogo.png" 
+                alt="HarnHub" 
+                width={600} 
+                height={150} 
+                priority
+                className="w-full h-auto drop-shadow-sm"
+              />
+            </div>
           </div>
           <p className="text-zinc-600 text-xs tracking-widest uppercase break-all">Session_ID: [ {billData.id} ]</p>
         </header>
@@ -153,13 +181,16 @@ export default function BillPage() {
               <span className="text-zinc-400">VAT</span>
               <span className="text-indigo-400 font-bold">{billData.vat}%</span>
             </div>
-            <div className="pt-4 flex justify-between items-center">
               <span className="text-zinc-500 uppercase text-xs tracking-[0.3em] font-black">Gross Total</span>
               <span className="text-5xl font-black text-white dropshadow-sm">
-                 ฿{splitResults.reduce((sum, res) => sum + (res.total || 0), 0).toLocaleString()}
+                 ฿{(() => {
+                    const subAfterDisc = Math.max(0, subtotal - (billData.discount || 0));
+                    const sc = subAfterDisc * ((billData.service_charge || 0) / 100);
+                    const vat = (subAfterDisc + sc) * ((billData.vat || 0) / 100);
+                    return (subAfterDisc + sc + vat).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                 })()}
               </span>
             </div>
-          </div>
         </section>
 
         {/* Itemized List */}
@@ -196,48 +227,48 @@ export default function BillPage() {
           <h2 className="text-[10px] uppercase tracking-[0.2em] text-indigo-400 mb-6 font-bold flex items-center gap-2">
             <span className="w-8 h-px bg-indigo-700"></span> User Share Manifest
           </h2>
-          <div className="space-y-5">
+          <div className={splitResults.length === 1 ? "grid grid-cols-1 gap-4" : "grid grid-cols-1 sm:grid-cols-2 gap-4"}>
             {splitResults.map((result) => {
               const person = billData.participants.find(p => p.id === result.id);
               return (
-                <div key={result.id} className="p-5 bg-black rounded-xl border border-zinc-800 hover:border-violet-900/50 transition-colors">
-                  <div className="flex justify-between items-center mb-6">
-                    <span className="text-xl font-black text-zinc-100 uppercase tracking-widest">{person?.name || "Unknown"}</span>
-                    <span className="text-3xl font-black text-indigo-400">
-                      ฿{(result.total || 0).toLocaleString()}
-                    </span>
+                <div key={result.id} className="p-4 bg-zinc-950 rounded-2xl border border-zinc-800 hover:border-violet-900/50 transition-colors flex items-center justify-between gap-3 h-[132px]">
+                  <div className="flex flex-col justify-between h-full flex-1 min-w-0">
+                    <div className="space-y-0.5">
+                      <span className="text-xs font-black text-zinc-300 uppercase tracking-widest block truncate" title={person?.name}>
+                        {person?.name || "Unknown"}
+                      </span>
+                      <span className="text-lg font-black text-indigo-400 block whitespace-nowrap">
+                        ฿{(result.total || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                      </span>
+                    </div>
+                    {billData.host_promptpay ? (
+                      <div className="mt-1">
+                        <span className="text-[8px] font-black uppercase tracking-wider text-zinc-500 block">PromptPay</span>
+                        <span className="text-[9px] font-mono font-bold text-indigo-300 bg-violet-950/30 px-2 py-0.5 rounded border border-violet-900/50 inline-block truncate max-w-full">
+                          {billData.host_promptpay}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-[8px] font-black uppercase tracking-wider text-red-500">No PromptPay</span>
+                    )}
                   </div>
                   
-                  {/* PromptPay QR Code Component Placeholder */}
-                  <div className="pt-6 border-t border-zinc-800 border-dashed flex flex-col items-center">
-                     <div className="flex items-center gap-3 mb-4">
-                        <div className="h-px w-10 bg-zinc-800"></div>
-                        <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-black text-center">PromptPay Transfer</p>
-                        <div className="h-px w-10 bg-zinc-800"></div>
-                     </div>
-                     
-                     <div className="p-3 bg-zinc-950 rounded-2xl border border-zinc-800 flex flex-col items-center">
-                       {billData.host_promptpay ? (
-                         <>
-                           <div className="bg-white p-2 rounded-xl mb-3 shadow-[0_0_15px_rgba(52,211,153,0.15)]">
-                             <QRCodeSVG
-                               value={promptpayQr(billData.host_promptpay, { amount: result.total || 0 })}
-                               size={160}
-                               bgColor="#ffffff"
-                               fgColor="#000000"
-                               level="Q"
-                             />
-                           </div>
-                           <span className="text-[10px] font-mono text-indigo-400 tracking-widest bg-violet-950/30 px-3 py-1.5 rounded-full border border-violet-900/50">
-                             {billData.host_promptpay}
-                           </span>
-                         </>
-                       ) : (
-                         <div className="w-40 h-40 flex items-center justify-center border-2 border-dashed border-red-900/50 rounded-xl">
-                           <span className="text-red-500 text-xs font-bold uppercase tracking-widest">No PromptPay</span>
-                         </div>
-                       )}
-                     </div>
+                  <div className="shrink-0 flex items-center justify-center bg-zinc-900 p-1.5 rounded-xl border border-zinc-800 shadow-inner">
+                    {billData.host_promptpay ? (
+                      <div className="bg-white p-1 rounded-lg shadow-sm border border-zinc-850">
+                        <QRCodeSVG
+                          value={promptpayQr(billData.host_promptpay, { amount: result.total || 0 })}
+                          size={84}
+                          bgColor="#ffffff"
+                          fgColor="#000000"
+                          level="Q"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-[92px] h-[92px] flex items-center justify-center border border-dashed border-red-900/50 rounded-lg">
+                        <span className="text-red-500 text-[8px] font-black uppercase tracking-widest text-center leading-tight">No PP</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )

@@ -6,17 +6,28 @@ import { createClient } from "@/utils/supabase/server";
 
 export default async function HarnHubLanding() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data?.user ?? null;
+  } catch (err) {
+    console.warn("Failed to get user session on server:", err);
+  }
   
   let historyData = null;
   if (user) {
-    const { data } = await supabase
-      .from('bills')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(5);
-    historyData = data;
+    try {
+      const { data } = await supabase
+        .from('bills')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      historyData = data;
+    } catch (err) {
+      console.warn("Failed to fetch bills history on server:", err);
+    }
   }
 
   return (
@@ -29,9 +40,16 @@ export default async function HarnHubLanding() {
       <div className="relative z-10 w-full max-w-4xl py-12 md:py-24">
         {/* Hero Section */}
         <div className="text-center mb-16 space-y-4">
-          <h1 className="text-6xl md:text-7xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-violet-400 to-rose-400 pb-2 drop-shadow-sm">
-            HarnHub
-          </h1>
+          <div className="flex justify-center mb-6">
+            <Image 
+              src="/bannerlogo.png" 
+              alt="HarnHub" 
+              width={600} 
+              height={150} 
+              priority
+              className="w-full max-w-[400px] md:max-w-[600px] h-auto drop-shadow-sm"
+            />
+          </div>
           <p className="text-zinc-700 text-lg md:text-xl font-bold tracking-wide uppercase drop-shadow-sm">
             The ultimate shared expense routing engine.
           </p>

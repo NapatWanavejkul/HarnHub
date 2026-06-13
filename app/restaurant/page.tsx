@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Plus, Trash2, Calculator, Receipt, Users } from "lucide-react";
 import { toPng } from "html-to-image";
 import { QRCodeSVG } from "qrcode.react";
@@ -48,18 +49,34 @@ export default function Home() {
   const billRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        supabase.from('friends')
-          .select('id, name')
-          .eq('user_id', user.id)
-          .limit(10)
-          .then(({ data, error }) => {
-            if (error) console.error("Supabase Fetch Friends Error:", error);
-            if (data) setSavedFriends(data);
-          });
+    let active = true;
+    async function initFriends() {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+          console.warn("Auth session fetch error:", error);
+          return;
+        }
+        const user = data?.session?.user;
+        if (user && active) {
+          const { data: friendsData, error: friendsError } = await supabase.from('friends')
+            .select('id, name')
+            .eq('user_id', user.id)
+            .limit(10);
+          if (friendsError) {
+            console.warn("Supabase Fetch Friends Error:", friendsError);
+          } else if (friendsData && active) {
+            setSavedFriends(friendsData);
+          }
+        }
+      } catch (err) {
+        console.warn("Auth getSession error in restaurant page:", err);
       }
-    });
+    }
+    initFriends();
+    return () => {
+      active = false;
+    };
   }, [supabase]);
 
   const addQuickFriend = (name: string) => {
@@ -84,6 +101,25 @@ export default function Home() {
 
     try {
       const dataUrl = await toPng(billRef.current, { cacheBust: true, pixelRatio: 2 });
+      
+      // Attempt Web Share API first for direct iOS Save/Share Sheet
+      try {
+        const response = await fetch(dataUrl);
+        const blob = await response.blob();
+        const file = new File([blob], 'harnhub-receipt.png', { type: 'image/png' });
+        
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'HarnHub Split Receipt',
+            text: 'Here is our bill split summary!',
+          });
+          return;
+        }
+      } catch (shareErr) {
+        console.log("Web Share failed or cancelled:", shareErr);
+      }
+      
       const link = document.createElement('a');
       link.href = dataUrl;
       link.download = 'harnhub-receipt.png';
@@ -151,7 +187,7 @@ export default function Home() {
       reader.readAsDataURL(file);
 
       reader.onload = async (event) => {
-        const img = new Image();
+        const img = new window.Image();
         img.src = event.target?.result as string;
 
         img.onload = async () => {
@@ -227,7 +263,9 @@ export default function Home() {
     if (shareLink) return; // Prevent duplicate saves for the same session
     try {
       setIsSaving(true);
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data, error: authError } = await supabase.auth.getSession();
+      if (authError) throw authError;
+      const user = data?.session?.user;
 
       if (user) {
         // Extract names to save
@@ -243,7 +281,7 @@ export default function Home() {
           }));
           
           const { error: insertError } = await supabase.from('friends').insert(insertPayload);
-          if (insertError) console.error("Supabase Insert Friends Error:", insertError);
+          if (insertError) console.warn("Supabase Insert Friends Error:", insertError);
           
           // Refetch to sync IDs
           const { data: updatedFriends, error: fetchError } = await supabase.from('friends')
@@ -251,12 +289,12 @@ export default function Home() {
             .eq('user_id', user.id)
             .limit(10);
             
-          if (fetchError) console.error("Supabase Refetch Friends Error:", fetchError);
+          if (fetchError) console.warn("Supabase Refetch Friends Error:", fetchError);
           if (updatedFriends) setSavedFriends(updatedFriends);
         }
       }
 
-      const { data, error } = await supabase
+      const { data: insertData, error } = await supabase
         .from("bills")
         .insert([
           {
@@ -272,17 +310,17 @@ export default function Home() {
         .single();
 
       if (error) {
-        console.error("Supabase Error:", error?.message || error);
+        console.warn("Supabase Error:", error?.message || error);
         alert("Failed to save bill: " + (error?.message || "Unknown error"));
         setIsSaving(false);
         return;
       }
 
-      if (data && data.id) {
-        setShareLink(`${window.location.origin}/bill/${data.id}?discount=${discount}`);
+      if (insertData && insertData.id) {
+        setShareLink(`${window.location.origin}/bill/${insertData.id}?discount=${discount}`);
       }
     } catch (err) {
-      console.error("Unexpected error:", err);
+      console.warn("Unexpected error:", err);
     } finally {
       setIsSaving(false);
     }
@@ -301,9 +339,16 @@ export default function Home() {
       */}
 
       <header className="mb-10 max-w-2xl mx-auto">
-        <h1 className="text-4xl font-black tracking-tighter text-[indigo-400]">
-          HarnHub <span className="text-zinc-600 text-sm font-normal">หารฮับ</span>
-        </h1>
+        <div className="mb-2 w-full max-w-[300px]">
+          <Image 
+            src="/bannerlogo.png" 
+            alt="HarnHub" 
+            width={600} 
+            height={150} 
+            priority
+            className="w-full h-auto drop-shadow-sm"
+          />
+        </div>
         <p className="text-zinc-500">Smart Split Prototype | Phase 1</p>
       </header>
 
@@ -696,7 +741,7 @@ export default function Home() {
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-violet-900 font-medium">{person?.name || 'Unknown'}</span>
                         <div className="flex items-center gap-2">
-                          <span className="text-black font-bold">฿{(result.total || 0).toLocaleString()}</span>
+                          <span className="text-black font-bold">฿{(result.total || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                           <button
                             type="button"
                             onClick={() => setActiveQR(result.id)}
@@ -779,8 +824,15 @@ export default function Home() {
 
       {/* HIDDEN RECEIPT DOM FOR PNG EXPORT */}
       <div className="absolute top-[-9999px] left-[-9999px] pointer-events-none opacity-0">
-        <div ref={billRef} className="w-[500px] p-8 font-sans text-slate-900 relative rounded-3xl overflow-hidden bg-[url('/HarnHub.jpg')] bg-cover bg-center">
-          <div className="absolute inset-0 bg-white/70 backdrop-blur-xl z-0 pointer-events-none"></div>
+        <div ref={billRef} className="w-[600px] p-8 font-sans text-slate-900 relative rounded-3xl overflow-hidden bg-zinc-50">
+          <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+            <img
+              src="/bg-ark.png"
+              alt="Global Background"
+              className="w-full h-full object-cover opacity-80"
+            />
+            <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px]"></div>
+          </div>
           
           <div className="relative z-10 flex flex-col gap-6">
             <header className="border-b border-violet-300 pb-6 text-center">
@@ -818,7 +870,13 @@ export default function Home() {
                 <div className="pt-2 flex justify-between items-center">
                   <span className="text-violet-500 uppercase text-xs tracking-widest font-black">Total</span>
                   <span className="text-4xl font-black text-indigo-900">
-                     ฿{calculateTotals(items, activeSC, activeVat, discount).reduce((sum, res) => sum + (res.total || 0), 0).toLocaleString()}
+                     ฿{(() => {
+                        const sub = items.reduce((s, i) => s + i.price, 0);
+                        const subAfterDisc = Math.max(0, sub - discount);
+                        const sc = subAfterDisc * (activeSC / 100);
+                        const vat = (subAfterDisc + sc) * (activeVat / 100);
+                        return (subAfterDisc + sc + vat).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                     })()}
                   </span>
                 </div>
               </div>
@@ -860,43 +918,48 @@ export default function Home() {
                  <span>Final Splits</span>
                  <Users size={14} />
                </h2>
-               <div className="space-y-5">
+               <div className={calculateTotals(items, activeSC, activeVat, discount).length === 1 ? "grid grid-cols-1 gap-4" : "grid grid-cols-2 gap-4"}>
                  {calculateTotals(items, activeSC, activeVat, discount).map((result) => {
                    const person = participants.find(p => p.id === result.id);
                    return (
-                     <div key={result.id} className="p-6 bg-white rounded-2xl border border-violet-200 shadow-sm">
-                       <div className="flex flex-col items-center mb-6">
-                         <span className="text-lg font-black text-slate-800 uppercase tracking-widest mb-2">{person?.name || "Unknown"}</span>
-                         <span className="text-4xl font-black text-indigo-700">
-                           ฿{(result.total || 0).toLocaleString()}
-                         </span>
+                     <div key={result.id} className="p-4 bg-white rounded-2xl border border-violet-200 shadow-sm flex items-center justify-between gap-3 h-[132px]">
+                       <div className="flex flex-col justify-between h-full flex-1 min-w-0">
+                         <div className="space-y-0.5">
+                           <span className="text-xs font-black text-slate-800 uppercase tracking-widest block truncate" title={person?.name}>
+                             {person?.name || "Unknown"}
+                           </span>
+                           <span className="text-lg font-black text-indigo-700 block whitespace-nowrap">
+                             ฿{(result.total || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                           </span>
+                         </div>
+                         {hostPromptPay ? (
+                           <div className="mt-1">
+                             <span className="text-[8px] font-black uppercase tracking-wider text-violet-500 block">PromptPay</span>
+                             <span className="text-[9px] font-mono font-bold text-violet-700 bg-violet-50 px-2 py-0.5 rounded border border-violet-100 inline-block truncate max-w-full">
+                               {hostPromptPay}
+                             </span>
+                           </div>
+                         ) : (
+                           <span className="text-[8px] font-black uppercase tracking-wider text-rose-500">No PromptPay</span>
+                         )}
                        </div>
                        
-                       <div className="pt-6 border-t border-dashed border-violet-300 flex flex-col items-center">
-                          <p className="text-[9px] text-violet-500 uppercase tracking-widest font-black text-center mb-4">PromptPay Transfer</p>
-                          
-                          <div className="p-3 bg-violet-50 rounded-3xl border border-violet-200 flex flex-col items-center">
-                            {hostPromptPay ? (
-                              <>
-                                <div className="bg-white p-3 rounded-2xl mb-3 shadow-sm border border-violet-100">
-                                  <QRCodeSVG
-                                    value={promptpayQr(hostPromptPay, { amount: result.total || 0 })}
-                                    size={160}
-                                    bgColor="#ffffff"
-                                    fgColor="#1e1b4b"
-                                    level="Q"
-                                  />
-                                </div>
-                                <span className="text-[10px] font-bold text-violet-700 tracking-widest bg-white px-4 py-2 rounded-full shadow-sm border border-violet-200">
-                                  {hostPromptPay}
-                                </span>
-                              </>
-                            ) : (
-                              <div className="w-40 h-40 flex items-center justify-center border-2 border-dashed border-rose-300 bg-rose-50 rounded-2xl">
-                                <span className="text-rose-500 text-[10px] font-black uppercase tracking-widest text-center leading-tight">No<br/>PromptPay</span>
-                              </div>
-                            )}
-                          </div>
+                       <div className="shrink-0 flex items-center justify-center bg-violet-50/50 p-1.5 rounded-xl border border-violet-100 shadow-inner">
+                         {hostPromptPay ? (
+                           <div className="bg-white p-1 rounded-lg shadow-sm border border-violet-100">
+                             <QRCodeSVG
+                               value={promptpayQr(hostPromptPay, { amount: result.total || 0 })}
+                               size={84}
+                               bgColor="#ffffff"
+                               fgColor="#1e1b4b"
+                               level="Q"
+                             />
+                           </div>
+                         ) : (
+                           <div className="w-[92px] h-[92px] flex items-center justify-center border border-dashed border-rose-200 bg-rose-50 rounded-lg">
+                             <span className="text-rose-500 text-[8px] font-black uppercase tracking-widest text-center leading-tight">No PP</span>
+                           </div>
+                         )}
                        </div>
                      </div>
                    )

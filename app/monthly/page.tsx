@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Plus, Trash2, Calculator, Receipt, Users, Download, Save, Settings2, Percent } from "lucide-react";
 import { toPng } from "html-to-image";
 import { createClient } from "@/utils/supabase/client";
@@ -42,46 +43,71 @@ export default function MonthlySplit() {
   const splitRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        supabase.from('monthly_templates')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .then(({ data }) => {
-            if (data) setTemplates(data);
-          });
+    let active = true;
+    async function initUser() {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+          console.warn("Auth session fetch error:", error);
+          return;
+        }
+        const user = data?.session?.user;
+        if (user && active) {
+          const { data: templatesData, error: templatesError } = await supabase.from('monthly_templates')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+          if (templatesError) {
+            console.warn("Templates fetch error:", templatesError);
+          } else if (templatesData && active) {
+            setTemplates(templatesData);
+          }
+        }
+      } catch (err) {
+        console.warn("Auth getSession error in monthly page:", err);
       }
-    });
+    }
+    initUser();
+    return () => {
+      active = false;
+    };
   }, [supabase]);
 
   const saveTemplate = async () => {
     if (!templateName) return alert("Please name your template");
     setIsSavingTemplate(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data, error } = await supabase.from('monthly_templates').insert([
-        {
-          user_id: user.id,
-          name: templateName,
-          expenses: expenses,
-          members: members
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      const user = data?.session?.user;
+      if (user) {
+        const { data: insertData, error: insertError } = await supabase.from('monthly_templates').insert([
+          {
+            user_id: user.id,
+            name: templateName,
+            expenses: expenses,
+            members: members
+          }
+        ]).select().single();
+        
+        console.log("Supabase Insert Response ->", { data: insertData, error: insertError });
+        if (!insertError && insertData) {
+          setTemplates([insertData, ...templates]);
+          setTemplateName("");
+          alert(`Template '${templateName}' has been successfully saved!`);
+        } else {
+          console.warn("Supabase Save Error Object:", insertError);
+          alert(`Failed to save! Supabase says: ${insertError?.message || JSON.stringify(insertError) || "Data was null"}.`);
         }
-      ]).select().single();
-      
-      console.log("Supabase Insert Response ->", { data, error });
-      if (!error && data) {
-        setTemplates([data, ...templates]);
-        setTemplateName("");
-        alert(`Template '${templateName}' has been successfully saved!`);
       } else {
-        console.error("Supabase Save Error Object:", error);
-        alert(`Failed to save! Supabase says: ${error?.message || JSON.stringify(error) || "Data was null"}.`);
+        alert("Please log in to save templates.");
       }
-    } else {
-      alert("Please log in to save templates.");
+    } catch (err: any) {
+      console.warn("Exception in saveTemplate:", err);
+      alert(`An error occurred: ${err.message || err}`);
+    } finally {
+      setIsSavingTemplate(false);
     }
-    setIsSavingTemplate(false);
   };
 
   const loadTemplate = (template: Template) => {
@@ -138,6 +164,25 @@ export default function MonthlySplit() {
     if (!splitRef.current) return;
     try {
       const dataUrl = await toPng(splitRef.current, { cacheBust: true, backgroundColor: '#000000' });
+      
+      // Attempt Web Share API first for direct iOS Save/Share Sheet
+      try {
+        const response = await fetch(dataUrl);
+        const blob = await response.blob();
+        const file = new File([blob], 'harnhub-monthly.png', { type: 'image/png' });
+        
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'HarnHub Monthly Split summary',
+            text: 'Here is our monthly expenses split summary!',
+          });
+          return;
+        }
+      } catch (shareErr) {
+        console.log("Web Share failed or cancelled:", shareErr);
+      }
+      
       const link = document.createElement('a');
       link.href = dataUrl;
       link.download = 'harnhub-monthly.png';
@@ -183,6 +228,16 @@ export default function MonthlySplit() {
         {/* Header & Templates */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
+            <div className="mb-4 w-full max-w-[250px]">
+              <Image 
+                src="/bannerlogo.png" 
+                alt="HarnHub" 
+                width={600} 
+                height={150} 
+                priority
+                className="w-full h-auto drop-shadow-sm"
+              />
+            </div>
             <h1 className="text-3xl font-black uppercase tracking-widest text-indigo-400 mb-2">Monthly Split</h1>
             <p className="text-zinc-500 text-sm uppercase tracking-widest">Fixed-Cost Routing Engine</p>
           </div>

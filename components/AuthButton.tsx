@@ -9,14 +9,37 @@ export default function AuthButton() {
   const supabase = createClient();
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user);
+    let active = true;
+
+    async function loadUser() {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+          console.warn("Auth session error returned:", error);
+        }
+        if (active) {
+          setUser(data?.session?.user ?? null);
+        }
+      } catch (err) {
+        console.warn("Auth session fetch threw:", err);
+      }
+    }
+    loadUser();
+
+    const authListener = supabase.auth.onAuthStateChange((event, session) => {
+      if (active) {
+        setUser(session?.user ?? null);
+      }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-       setUser(session?.user ?? null);
-    });
-    return () => subscription.unsubscribe();
+    const subscription = authListener?.data?.subscription;
+
+    return () => {
+      active = false;
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
   }, [supabase]);
 
   const signIn = async () => {
